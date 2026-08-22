@@ -1,351 +1,136 @@
-/* =========================================================
-   IntelliCharge Design System
-   Per Design PRD §3 — "Copper Current" palette
-   ========================================================= */
-
-/* Leaflet popup overrides must be global */
-.leaflet-popup-content-wrapper,
-.leaflet-popup-content-wrapper * {
-  color: var(--fog) !important;
-}
-.leaflet-container a { color: var(--volt-cyan) !important; }
-
 :root {
-  /* §3 Color Tokens */
-  --asphalt:      #1B1F24;   /* base background — honest for night use, OLED-kind */
-  --slate:        #262B32;   /* card / surface — one step up from asphalt */
-  --slate-border: #313740;   /* hairline border — lightened slate, never a shadow */
-  --slate-dim:    #1e2329;   /* inset / code areas */
-
-  --copper:       #C8712E;   /* primary accent — conductor color, NOT eco-green */
-  --copper-muted: rgba(200, 113, 46, 0.15);
-  --copper-border: rgba(200, 113, 46, 0.35);
-
-  --volt-cyan:    #3FD6C4;   /* "good" signal — short wait, available. RESERVED, never decorative */
-  --volt-muted:   rgba(63, 214, 196, 0.15);
-  --volt-border:  rgba(63, 214, 196, 0.3);
-
-  --signal-red:   #E85C4A;   /* "poor" signal — long wait, error. RESERVED, never decorative */
-  --red-muted:    rgba(232, 92, 74, 0.15);
-  --red-border:   rgba(232, 92, 74, 0.3);
-
-  --amber:        #D4943A;   /* mid wait — between cyan and red */
-
-  --fog:          #F0EDE6;   /* primary text — off-white so it doesn't glare at night */
-  --fog-muted:    #9A9590;   /* secondary text */
-  --fog-dim:      #5C5955;   /* tertiary / placeholder */
-
-  /* §3 Typography */
-  --font-display: 'Space Grotesk', system-ui, sans-serif;   /* headings — reads as "instrument" */
-  --font-data:    'IBM Plex Mono', 'Courier New', monospace; /* wait times, distances, battery % */
-  --font-body:    'IBM Plex Sans', system-ui, sans-serif;    /* prose — same foundry as Plex Mono */
-
-  /* §3 Shape & Spacing */
-  --radius-card:  6px;    /* physical panel feel, not decorative soft */
-  --radius-chip:  4px;
-  --radius-btn:   5px;
-  --unit:         8px;    /* 8px base unit */
+  --bg-dark: #090d16;
+  --bg-card: rgba(15, 23, 42, 0.75);
+  --bg-card-hover: rgba(30, 41, 59, 0.85);
+  --border-color: rgba(51, 65, 85, 0.6);
+  --border-highlight: rgba(6, 182, 212, 0.4);
+  
+  --primary: #06b6d4;
+  --primary-glow: rgba(6, 182, 212, 0.25);
+  --accent-green: #10b981;
+  --accent-amber: #f59e0b;
+  --accent-red: #ef4444;
+  
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-heading: 'Outfit', sans-serif;
 }
 
-/* =========================================================
-   Reset & Base
-   ========================================================= */
-*, *::before, *::after {
+* {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-html {
-  font-size: 16px;
-  -webkit-text-size-adjust: 100%;
-}
-
 body {
-  background-color: var(--asphalt);
-  color: var(--fog);
-  font-family: var(--font-body);
-  font-size: 0.875rem;
-  line-height: 1.5;
+  background-color: var(--bg-dark);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(6, 182, 212, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.06) 0px, transparent 50%);
+  color: var(--text-main);
+  font-family: var(--font-sans);
   min-height: 100vh;
-  /* No background gradients — asphalt is the honest ground color */
+  overflow-x: hidden;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-display);
-  font-weight: 600;
-  line-height: 1.2;
-  color: var(--fog);
+h1, h2, h3, h4, .font-heading {
+  font-family: var(--font-heading);
 }
 
-/* §3 — data numerals always in Plex Mono */
-.data, .mono, [data-type="numeral"] {
-  font-family: var(--font-data);
+/* Glassmorphism Card Utility */
+.glass-panel {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
 }
 
-/* =========================================================
-   Card surface — §3: 1px hairline border, no shadows
-   ========================================================= */
-.card {
-  background: var(--slate);
-  border: 1px solid var(--slate-border);
-  border-radius: var(--radius-card);
+.glass-panel-glow {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-highlight);
+  box-shadow: 0 0 25px var(--primary-glow);
+  border-radius: 14px;
 }
 
-.card-inset {
-  background: var(--slate-dim);
-  border: 1px solid var(--slate-border);
-  border-radius: var(--radius-card);
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(51, 65, 85, 0.8);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
 }
 
-/* =========================================================
-   Charge Bar — §4: THE signature element
-   Encodes predicted wait time as a battery/signal bar.
-   Full + Volt Cyan = short wait. Empty + Signal Red = long.
-   ========================================================= */
-.charge-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.charge-bar__segments {
-  display: flex;
-  gap: 2px;
-  align-items: center;
-}
-
-.charge-bar__seg {
-  width: 18px;
-  height: 8px;
-  border-radius: 2px;
-  background: var(--slate-border);        /* empty segment — Slate */
-  transition: background 0.3s ease;
-}
-
-.charge-bar__seg--filled {
-  /* color set inline per wait level */
-}
-
-.charge-bar__label {
-  font-family: var(--font-data);
-  font-size: 0.8rem;
-  font-weight: 500;
-  white-space: nowrap;
-  min-width: 42px;
-}
-
-/* §6 Loading shimmer — same bar shape, so layout doesn't shift */
-@keyframes shimmer {
-  0%   { opacity: 0.4; }
-  50%  { opacity: 0.7; }
-  100% { opacity: 0.4; }
-}
-
-.charge-bar__seg--shimmer {
-  background: var(--slate-border);
-  animation: shimmer 1.6s ease-in-out infinite;
-}
-
-/* =========================================================
-   Map Pins — §7 Motion
-   Pulse rate tied to wait time via --pulse-duration CSS var.
-   Everything else in the UI is still.
-   ========================================================= */
-@keyframes station-pulse {
-  0%   { transform: scale(1);   opacity: 0.85; box-shadow: 0 0 0 0px var(--pin-color); }
-  60%  { transform: scale(1.05); opacity: 1;   box-shadow: 0 0 0 6px transparent; }
-  100% { transform: scale(1);   opacity: 0.85; box-shadow: 0 0 0 0px var(--pin-color); }
-}
-
-@keyframes pulse-ring {
-  0%   { transform: scale(0.8); opacity: 0.9; }
-  100% { transform: scale(2.4); opacity: 0; }
-}
-
-.station-pin {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  border: 2px solid var(--asphalt);
-  cursor: pointer;
-  position: relative;
-  /* --pin-color and --pulse-duration set inline per station */
-  animation: station-pulse var(--pulse-duration, 1.4s) ease-in-out infinite;
-}
-
-.station-pin__ring {
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  border: 1.5px solid var(--pin-color, #3FD6C4);
-  width: 100%; height: 100%;
-  animation: pulse-ring var(--pulse-duration, 1.4s) ease-out infinite;
-  pointer-events: none;
-}
-
-/* §7 prefers-reduced-motion — static colored ring instead of animation */
-@media (prefers-reduced-motion: reduce) {
-  .station-pin { animation: none; }
-  .station-pin__ring {
-    animation: none;
-    opacity: 0.5;
-  }
-}
-
-.user-pin {
-  width: 14px;
-  height: 14px;
-  background: var(--copper);
-  border: 2px solid var(--fog);
-  border-radius: 50%;
-  box-shadow: 0 0 10px rgba(200, 113, 46, 0.5);
-}
-
-/* =========================================================
-   Buttons — §10: say what they do
-   ========================================================= */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 10px 16px;
-  border: none;
-  border-radius: var(--radius-btn);
-  font-family: var(--font-body);
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: opacity 0.15s ease, background 0.15s ease;
-  text-decoration: none;
-  line-height: 1;
-  min-height: 44px; /* §8 touch target min 44px */
-}
-
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.btn-primary {
-  background: var(--copper);
-  color: var(--asphalt);
-  font-weight: 600;
-}
-.btn-primary:hover:not(:disabled) { opacity: 0.88; }
-
-.btn-ghost {
-  background: transparent;
-  color: var(--fog-muted);
-  border: 1px solid var(--slate-border);
-}
-.btn-ghost:hover:not(:disabled) {
-  border-color: var(--copper-border);
-  color: var(--fog);
-}
-
-.btn-navigate {
-  background: var(--volt-muted);
-  color: var(--volt-cyan);
-  border: 1px solid var(--volt-border);
-  font-size: 0.8rem;
-  padding: 7px 12px;
-  min-height: 36px;
-}
-
-/* §8 Visible keyboard focus ring in Volt Cyan on every interactive element */
-:focus-visible {
-  outline: 2px solid var(--volt-cyan);
-  outline-offset: 2px;
-}
-
-/* =========================================================
-   Chips / Filter pills
-   ========================================================= */
-.chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 12px;
-  border-radius: var(--radius-chip);
-  font-size: 0.78rem;
-  font-weight: 500;
-  border: 1px solid var(--slate-border);
-  background: var(--slate-dim);
-  color: var(--fog-muted);
-  cursor: pointer;
-  min-height: 34px;
-  transition: all 0.12s ease;
-  white-space: nowrap;
-}
-
-.chip--active {
-  background: var(--copper-muted);
-  border-color: var(--copper-border);
-  color: var(--copper);
-}
-
-/* =========================================================
-   Scrollbar
-   ========================================================= */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: var(--asphalt); }
-::-webkit-scrollbar-thumb { background: var(--slate-border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--copper); }
-
-/* =========================================================
-   Leaflet map overrides for Asphalt palette
-   ========================================================= */
+/* Leaflet Map overrides for dark theme */
 .leaflet-container {
-  background: #12161a !important;
-  font-family: var(--font-body) !important;
-  border-radius: var(--radius-card);
+  background: #0b1120 !important;
+  font-family: var(--font-sans) !important;
+  border-radius: 14px;
 }
 
 .leaflet-tile {
-  /* Toned dark enough to suit the Asphalt palette but still readable */
-  filter: brightness(0.72) contrast(1.05) saturate(0.5);
+  filter: brightness(0.65) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
 }
 
 .leaflet-popup-content-wrapper {
-  background: var(--slate) !important;
-  color: var(--fog) !important;
-  border: 1px solid var(--slate-border) !important;
-  border-radius: var(--radius-card) !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-}
-
-.leaflet-popup-content {
-  margin: 0 !important;
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  border: 1px solid #334155 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7) !important;
 }
 
 .leaflet-popup-tip {
-  background: var(--slate) !important;
+  background: #0f172a !important;
 }
 
-.leaflet-popup-close-button {
-  color: var(--fog-muted) !important;
-  font-size: 16px !important;
+/* Custom Map Marker Pulse */
+.user-pulse-marker {
+  width: 18px;
+  height: 18px;
+  background: #06b6d4;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 15px #06b6d4;
+  position: relative;
 }
 
-/* =========================================================
-   Utility
-   ========================================================= */
-.visually-hidden {
+.user-pulse-marker::after {
+  content: '';
   position: absolute;
-  width: 1px; height: 1px;
-  padding: 0; margin: -1px;
-  overflow: hidden;
-  clip: rect(0,0,0,0);
-  white-space: nowrap;
-  border: 0;
+  top: -8px;
+  left: -8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(6, 182, 212, 0.4);
+  animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
 }
 
-.text-copper  { color: var(--copper); }
-.text-cyan    { color: var(--volt-cyan); }
-.text-red     { color: var(--signal-red); }
-.text-fog     { color: var(--fog); }
-.text-muted   { color: var(--fog-muted); }
-.text-dim     { color: var(--fog-dim); }
-.font-mono    { font-family: var(--font-data); }
-.font-display { font-family: var(--font-display); }
+@keyframes pulse-ring {
+  0% { transform: scale(0.5); opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* Pulse animation for best recommendation tag */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.animate-glow {
+  animation: glow-pulse 2s infinite ease-in-out;
+}

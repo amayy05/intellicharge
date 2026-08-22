@@ -1,211 +1,152 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
-import FilterStrip from './components/SearchPanel';
+import SearchPanel from './components/SearchPanel';
 import MapView from './components/MapView';
 import StationList from './components/StationList';
 import AgentChat from './components/AgentChat';
 import { fetchRecommendations } from './services/api';
-
-const DEFAULT_LOCATION = { label: 'SJCEM Palghar', lat: 19.6967, lng: 72.7699 };
+import { Zap, AlertCircle } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('map');
-  const [location, setLocation] = useState(DEFAULT_LOCATION);
+  const [activeTab, setActiveTab] = useState('recommend'); // 'recommend' | 'agent'
+  const [location, setLocation] = useState({
+    label: '🎓 SJCEM Palghar Campus',
+    lat: 19.6967,
+    lng: 72.7699,
+    region: 'Palghar',
+  });
   const [batteryPct, setBatteryPct] = useState(30);
   const [connectorType, setConnectorType] = useState('');
   const [radiusKm, setRadiusKm] = useState(50);
-  const [recData, setRecData] = useState(null);
+  const [recommendationData, setRecommendationData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedStation, setSelectedStation] = useState(null);
 
-  const loadRecs = async () => {
+  const loadRecommendations = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchRecommendations(location.lat, location.lng, batteryPct, radiusKm, connectorType);
-      setRecData(data);
-    } catch (e) {
-      setError(e.message);
+      const data = await fetchRecommendations(
+        location.lat,
+        location.lng,
+        batteryPct,
+        radiusKm,
+        connectorType
+      );
+      setRecommendationData(data);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Failed to connect to IntelliCharge backend.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { loadRecs(); }, [location, connectorType]);
+  useEffect(() => {
+    loadRecommendations();
+  }, [location, connectorType]);
 
-  const topId = recData?.top_recommendation?.station_id;
-  const stations = recData?.ranked_stations ?? [];
+  const topStationId = recommendationData?.top_recommendation?.station_id;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: 'var(--asphalt)', overflow: 'hidden' }}>
-      <style>{`
-        /* ── Desktop layout ────────────────────────────────────── */
-        @media (min-width: 900px) {
-          .map-view-area {
-            /* map fills the full remaining height, full width */
-            height: 100% !important;
-          }
-          .desktop-body {
-            flex: 1;
-            display: grid !important;
-            grid-template-columns: 1fr 400px !important;
-            grid-template-rows: 1fr !important;
-            overflow: hidden;
-          }
-          .desktop-left {
-            display: flex !important;
-            flex-direction: column !important;
-            overflow: hidden;
-            border-right: 1px solid var(--slate-border);
-          }
-          .desktop-right {
-            display: flex !important;
-            flex-direction: column !important;
-            overflow: hidden;
-          }
-          .mobile-map-row { display: none !important; }
-          .desktop-map-area {
-            flex: 1;
-            padding: 10px;
-            overflow: hidden;
-          }
-          .station-list-scroll {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px 12px 80px 12px;
-          }
-          .filter-strip-desktop {
-            border-bottom: 1px solid var(--slate-border);
-          }
-        }
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', paddingBottom: '30px' }}>
+      {/* Navigation Header */}
+      <Navbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        reachableCount={recommendationData?.reachable_count || 0}
+        totalCount={recommendationData?.total_found || 0}
+      />
 
-        /* ── Mobile layout ─────────────────────────────────────── */
-        @media (max-width: 899px) {
-          .desktop-left { display: contents !important; }
-          .desktop-right { display: contents !important; }
-          .desktop-body {
-            flex: 1;
-            display: flex !important;
-            flex-direction: column !important;
-            overflow: hidden;
-          }
-          .mobile-map-row {
-            height: 42vmax;
-            min-height: 220px;
-            max-height: 45vh;
-            flex-shrink: 0;
-            padding: 8px 10px 0 10px;
-          }
-          .desktop-map-area { display: none !important; }
-          .station-list-scroll {
-            flex: 1;
-            overflow-y: auto;
-            padding: 8px 10px 80px 10px;
-          }
-        }
-
-        @keyframes shimmer {
-          0%   { opacity: 0.35; }
-          50%  { opacity: 0.65; }
-          100% { opacity: 0.35; }
-        }
-      `}</style>
-
-      {/* ── Navbar ──────────────────────────────────────────────── */}
-      <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
-
-      {/* ── Error banner ────────────────────────────────────────── */}
-      {error && (
-        <div
-          role="alert"
-          style={{
-            background: 'var(--red-muted)', border: '1px solid var(--red-border)',
-            padding: '8px 16px', fontSize: '0.8rem', color: 'var(--signal-red)',
-          }}
-        >
-          Could not reach IntelliCharge backend. Check that the server is running on port 8000.
-        </div>
-      )}
-
-      {/* ── Agent view ──────────────────────────────────────────── */}
-      {activeTab === 'agent' ? (
-        <div style={{ flex: 1, overflow: 'hidden' }}>
-          <AgentChat
-            currentLat={location.lat} currentLng={location.lng}
-            currentBattery={batteryPct} currentConnector={connectorType}
-          />
-        </div>
-      ) : (
-        /* ── Map + list view ─────────────────────────────────── */
-        <div className="desktop-body" style={{ position: 'relative' }}>
-
-          {/* LEFT COLUMN — filter strip (desktop) + map */}
-          <div className="desktop-left">
-            {/* Filter strip sits above the map on desktop */}
-            <div className="filter-strip-desktop">
-              <FilterStrip
-                location={location} setLocation={setLocation}
-                batteryPct={batteryPct} setBatteryPct={setBatteryPct}
-                connectorType={connectorType} setConnectorType={setConnectorType}
-                radiusKm={radiusKm} setRadiusKm={setRadiusKm}
-                onSearch={loadRecs} loading={loading}
-              />
-            </div>
-
-            {/* Mobile: map sits in a fixed-height row here */}
-            <div className="mobile-map-row">
-              <MapView
-                userLocation={location} stations={stations}
-                topStationId={topId} onSelectStation={setSelectedStation}
-              />
-            </div>
-
-            {/* Desktop: map fills remaining height */}
-            <div className="desktop-map-area">
-              <MapView
-                userLocation={location} stations={stations}
-                topStationId={topId} onSelectStation={setSelectedStation}
-              />
-            </div>
-          </div>
-
-          {/* RIGHT COLUMN — ranked list */}
-          <div className="desktop-right">
-            <div className="station-list-scroll">
-              <StationList
-                recommendationData={recData} loading={loading}
-                onSelectStation={setSelectedStation}
-              />
-            </div>
-          </div>
-
-          {/* §5.1: "💬 Ask IntelliCharge" — persistent, never hidden */}
+      {/* Main Container */}
+      <main style={{ maxWidth: '1440px', margin: '20px auto', padding: '0 20px', width: '100%', boxSizing: 'border-box' }}>
+        {error && (
           <div
             style={{
-              position: 'absolute', bottom: 0, left: 0, right: 0,
-              padding: '10px 12px',
-              background: 'linear-gradient(to top, var(--asphalt) 55%, transparent)',
-              display: 'flex', justifyContent: 'center',
-              pointerEvents: 'none',
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid #ef4444',
+              borderRadius: '10px',
+              padding: '12px 16px',
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              color: '#fca5a5',
+              fontSize: '0.85rem',
             }}
           >
-            <button
-              onClick={() => setActiveTab('agent')}
-              className="btn btn-primary"
-              id="ask-intellicharge-btn"
-              aria-label="Open IntelliCharge Agent chat"
-              style={{
-                width: '100%', maxWidth: '320px',
-                boxShadow: '0 4px 20px rgba(200, 113, 46, 0.3)',
-                pointerEvents: 'all',
-              }}
-            >
-              💬 Ask IntelliCharge
-            </button>
+            <AlertCircle size={18} color="#ef4444" />
+            <span>{error}</span>
           </div>
-        </div>
-      )}
+        )}
+
+        {activeTab === 'recommend' ? (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '360px 1fr 400px',
+              gap: '20px',
+              alignItems: 'start',
+            }}
+            className="dashboard-grid"
+          >
+            {/* Left Column: Trip & Battery Parameters */}
+            <div>
+              <SearchPanel
+                location={location}
+                setLocation={setLocation}
+                batteryPct={batteryPct}
+                setBatteryPct={setBatteryPct}
+                connectorType={connectorType}
+                setConnectorType={setConnectorType}
+                radiusKm={radiusKm}
+                setRadiusKm={setRadiusKm}
+                onSearch={loadRecommendations}
+                loading={loading}
+              />
+            </div>
+
+            {/* Center Column: Interactive Leaflet OSM Map */}
+            <div style={{ height: '700px' }}>
+              <MapView
+                userLocation={location}
+                stations={recommendationData?.ranked_stations || []}
+                topStationId={topStationId}
+                onSelectStation={(st) => console.log('Selected:', st)}
+              />
+            </div>
+
+            {/* Right Column: Ranked Recommendations with Wait Breakdown */}
+            <div style={{ maxHeight: '700px', overflowY: 'auto', paddingRight: '4px' }}>
+              <StationList
+                recommendationData={recommendationData}
+                loading={loading}
+                onSelectStation={(st) => console.log('Selected card:', st)}
+              />
+            </div>
+          </div>
+        ) : (
+          /* Conversational AI Agent Tab */
+          <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+            <AgentChat
+              currentLat={location.lat}
+              currentLng={location.lng}
+              currentBattery={batteryPct}
+              currentConnector={connectorType}
+            />
+          </div>
+        )}
+      </main>
+
+      {/* Footer */}
+      <footer style={{ marginTop: 'auto', textAlign: 'center', padding: '20px', color: '#64748b', fontSize: '0.75rem' }}>
+        <p>
+          IntelliCharge MVP • Department of Computer Engineering, St. John College of Engineering and Management (SJCEM), Palghar
+        </p>
+        <p style={{ marginTop: '4px' }}>
+          OpenChargeMap Data Ingestion • Scikit-Learn Predictive Regressor • Battery-Aware Road Routing
+        </p>
+      </footer>
     </div>
   );
 }
