@@ -1,0 +1,8 @@
+{
+  "model_type": "GradientBoostingRegressor",
+  "train_samples": 27375,
+  "test_samples": 6844,
+  "mae_minutes": 1.62,
+  "r2_score": 0.2231,
+  "mae_target_achieved": true
+}

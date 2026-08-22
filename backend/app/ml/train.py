@@ -9,9 +9,10 @@ import sys
 from pathlib import Path
 import numpy as np
 
-# Add project root to sys.path
+# Add project root to sys.path so both backend app and data modules resolve
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(BASE_DIR / "backend"))
+sys.path.insert(0, str(BASE_DIR))  # Needed for data.generator import
 
 from app.ml.feature_pipeline import FeaturePipeline
 

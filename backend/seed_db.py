@@ -8,15 +8,18 @@ import os
 import sys
 from pathlib import Path
 
-# Add backend directory to sys.path
+# Add backend directory AND project root to sys.path so all imports resolve
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR / "backend"))
+sys.path.insert(0, str(BASE_DIR))  # Needed for data.generator import
 
 from app.core.database import SessionLocal, engine, Base
 from app.models.station import Station
 from app.models.queue import QueueSnapshot
-from data.generator.queue_generator import generate_synthetic_dataset
 from app.ml.train import train_wait_time_model
+
+# Import queue generator from data directory
+from data.generator.queue_generator import generate_synthetic_dataset
 
 
 def seed_database():
