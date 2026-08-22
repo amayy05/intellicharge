@@ -1,8 +1,7 @@
 /**
  * FilterStrip — §5.1 sticky filter strip
- * "🔋 42%  CCS2 ▾  2.1 km ▾" — the PRD's wireframe
- * §3: Copper primary button. §8: 44px min touch targets.
- * §10: "Navigate" not "Go." Buttons say what they do.
+ * "🔋 42%  CCS2 ▾  2.1 km ▾" — PRD §5.1 wireframe
+ * Compact single-row design on desktop, stacks on mobile.
  */
 
 import React from 'react';
@@ -18,9 +17,6 @@ const PRESET_LOCATIONS = [
 
 const CONNECTORS = ['Any', 'CCS2', 'Type 2', 'CHAdeMO', 'Bharat DC-001'];
 
-// Estimated safe driving range from battery %
-const estimatedRange = (pct) => Math.round((pct / 100) * 280);
-
 export default function FilterStrip({
   location, setLocation,
   batteryPct, setBatteryPct,
@@ -28,30 +24,21 @@ export default function FilterStrip({
   radiusKm, setRadiusKm,
   onSearch, loading,
 }) {
-  const range = estimatedRange(batteryPct);
   const batteryLow = batteryPct <= 20;
+  const range = Math.round((batteryPct / 100) * 280);
 
   const handleGPS = () => {
     if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setLocation({ label: 'GPS Location', lat: +pos.coords.latitude.toFixed(5), lng: +pos.coords.longitude.toFixed(5) }),
-      () => {},
+    navigator.geolocation.getCurrentPosition((pos) =>
+      setLocation({ label: 'GPS', lat: +pos.coords.latitude.toFixed(5), lng: +pos.coords.longitude.toFixed(5) })
     );
   };
 
   return (
-    <div
-      style={{
-        background: 'var(--slate)',
-        borderBottom: '1px solid var(--slate-border)',
-        padding: '10px 16px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '10px',
-      }}
-    >
-      {/* Row 1: location + GPS */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+    <div style={{ background: 'var(--slate)', borderBottom: '1px solid var(--slate-border)', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+
+      {/* Row 1: Location + GPS + Find */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
         <select
           value={`${location.lat},${location.lng}`}
           onChange={(e) => {
@@ -60,17 +47,10 @@ export default function FilterStrip({
             setLocation(found ?? { label: 'Custom', lat, lng });
           }}
           style={{
-            flex: 1,
-            minWidth: '160px',
-            background: 'var(--slate-dim)',
-            border: '1px solid var(--slate-border)',
-            borderRadius: 'var(--radius-chip)',
-            color: 'var(--fog)',
-            fontFamily: 'var(--font-body)',
-            fontSize: '0.82rem',
-            padding: '7px 10px',
-            outline: 'none',
-            cursor: 'pointer',
+            flex: 1, background: 'var(--slate-dim)', border: '1px solid var(--slate-border)',
+            borderRadius: 'var(--radius-chip)', color: 'var(--fog)',
+            fontFamily: 'var(--font-body)', fontSize: '0.82rem',
+            padding: '6px 10px', outline: 'none', cursor: 'pointer',
           }}
           aria-label="Select origin location"
         >
@@ -79,75 +59,60 @@ export default function FilterStrip({
           ))}
         </select>
 
-        <button
-          onClick={handleGPS}
-          className="btn btn-ghost"
-          style={{ padding: '7px 12px', fontSize: '0.78rem', minHeight: '34px' }}
-          aria-label="Use GPS location"
-        >
+        <button onClick={handleGPS} className="btn btn-ghost"
+          style={{ padding: '6px 10px', fontSize: '0.75rem', minHeight: '32px', whiteSpace: 'nowrap' }}
+          aria-label="Use GPS">
           📍 GPS
         </button>
+
+        <button onClick={onSearch} disabled={loading} className="btn btn-primary"
+          style={{ padding: '6px 14px', fontSize: '0.82rem', minHeight: '32px', whiteSpace: 'nowrap' }}
+          id="find-stations-btn">
+          {loading ? '…' : 'Find'}
+        </button>
       </div>
 
-      {/* Row 2: Battery slider — §8 data in IBM Plex Mono */}
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-          <label style={{ fontSize: '0.78rem', color: 'var(--fog-muted)' }}>
-            🔋 Battery
-          </label>
-          <span style={{ fontFamily: 'var(--font-data)', fontSize: '0.82rem', color: batteryLow ? 'var(--signal-red)' : 'var(--volt-cyan)', fontWeight: 500 }}>
-            {batteryPct}% &nbsp;·&nbsp; ~{range} km
+      {/* Row 2: Battery inline + Connectors */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+
+        {/* Battery % pill + slider inline */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          <span style={{ fontSize: '0.72rem', color: 'var(--fog-dim)' }}>🔋</span>
+          <span style={{ fontFamily: 'var(--font-data)', fontSize: '0.78rem', color: batteryLow ? 'var(--signal-red)' : 'var(--volt-cyan)', fontWeight: 500, minWidth: '30px' }}>
+            {batteryPct}%
+          </span>
+          <input type="range" min="5" max="100" step="5" value={batteryPct}
+            onChange={(e) => setBatteryPct(+e.target.value)}
+            style={{ width: '80px', accentColor: batteryLow ? 'var(--signal-red)' : 'var(--copper)' }}
+            aria-label={`Battery: ${batteryPct}%`} />
+          <span style={{ fontFamily: 'var(--font-data)', fontSize: '0.72rem', color: 'var(--fog-dim)' }}>
+            ~{range}km
           </span>
         </div>
-        <input
-          type="range"
-          min="5" max="100" step="5"
-          value={batteryPct}
-          onChange={(e) => setBatteryPct(+e.target.value)}
-          style={{ width: '100%', accentColor: batteryLow ? 'var(--signal-red)' : 'var(--copper)', cursor: 'pointer' }}
-          aria-label={`Battery level: ${batteryPct}%`}
-        />
-      </div>
 
-      {/* Row 3: Connector chips + Radius + Search */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-        {CONNECTORS.map((c) => {
-          const active = (c === 'Any' && !connectorType) || connectorType === c;
-          return (
-            <button
-              key={c}
-              onClick={() => setConnectorType(c === 'Any' ? '' : c)}
-              className={`chip${active ? ' chip--active' : ''}`}
-              aria-pressed={active}
-            >
-              {c}
-            </button>
-          );
-        })}
-
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <label style={{ fontSize: '0.75rem', color: 'var(--fog-muted)', whiteSpace: 'nowrap' }}>
-            <span style={{ fontFamily: 'var(--font-data)' }}>{radiusKm} km</span> radius
-          </label>
-          <input
-            type="range"
-            min="10" max="80" step="5"
-            value={radiusKm}
-            onChange={(e) => setRadiusKm(+e.target.value)}
-            style={{ width: '70px', accentColor: 'var(--copper)' }}
-            aria-label={`Search radius: ${radiusKm} km`}
-          />
+        {/* Connector chips */}
+        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', flex: 1 }}>
+          {CONNECTORS.map((c) => {
+            const active = (c === 'Any' && !connectorType) || connectorType === c;
+            return (
+              <button key={c} onClick={() => setConnectorType(c === 'Any' ? '' : c)}
+                className={`chip${active ? ' chip--active' : ''}`}
+                style={{ padding: '4px 9px', minHeight: '28px', fontSize: '0.73rem' }}
+                aria-pressed={active}>
+                {c}
+              </button>
+            );
+          })}
         </div>
 
-        <button
-          onClick={onSearch}
-          disabled={loading}
-          className="btn btn-primary"
-          style={{ padding: '8px 16px', fontSize: '0.82rem', minHeight: '34px' }}
-          id="find-stations-btn"
-        >
-          {loading ? 'Searching…' : 'Find Stations'}
-        </button>
+        {/* Radius */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
+          <span style={{ fontFamily: 'var(--font-data)', fontSize: '0.72rem', color: 'var(--fog-dim)' }}>{radiusKm}km</span>
+          <input type="range" min="10" max="80" step="5" value={radiusKm}
+            onChange={(e) => setRadiusKm(+e.target.value)}
+            style={{ width: '55px', accentColor: 'var(--copper)' }}
+            aria-label={`Radius: ${radiusKm}km`} />
+        </div>
       </div>
     </div>
   );

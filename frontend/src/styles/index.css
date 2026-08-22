@@ -3,6 +3,13 @@
    Per Design PRD §3 — "Copper Current" palette
    ========================================================= */
 
+/* Leaflet popup overrides must be global */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-content-wrapper * {
+  color: var(--fog) !important;
+}
+.leaflet-container a { color: var(--volt-cyan) !important; }
+
 :root {
   /* §3 Color Tokens */
   --asphalt:      #1B1F24;   /* base background — honest for night use, OLED-kind */
@@ -295,7 +302,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .leaflet-tile {
-  filter: brightness(0.55) contrast(1.1) saturate(0.4) hue-rotate(190deg);
+  /* Toned dark enough to suit the Asphalt palette but still readable */
+  filter: brightness(0.72) contrast(1.05) saturate(0.5);
 }
 
 .leaflet-popup-content-wrapper {

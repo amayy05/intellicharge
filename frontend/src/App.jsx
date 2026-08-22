@@ -1,17 +1,3 @@
-/**
- * App.jsx — §9 Responsive layout
- *
- * §9 Mobile (primary — audience is mid-journey, phone, glancing in car):
- *   Single column: [Navbar] → [FilterStrip sticky] → [Map ~45vh] → [Ranked list] → [Ask IntelliCharge persistent entry]
- *
- * §9 Tablet/Desktop:
- *   [Navbar]
- *   [Map (65%) | FilterStrip + Ranked list (35%)]
- *   Chat = slide-over panel from the right — so desktop user doesn't lose map context.
- *
- * §5.1: "💬 Ask IntelliCharge" persistent entry — never hidden.
- */
-
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import FilterStrip from './components/SearchPanel';
@@ -23,18 +9,14 @@ import { fetchRecommendations } from './services/api';
 const DEFAULT_LOCATION = { label: 'SJCEM Palghar', lat: 19.6967, lng: 72.7699 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('map');   // 'map' | 'agent'
-  const [chatOpen, setChatOpen] = useState(false);       // desktop slide-over
-
+  const [activeTab, setActiveTab] = useState('map');
   const [location, setLocation] = useState(DEFAULT_LOCATION);
   const [batteryPct, setBatteryPct] = useState(30);
   const [connectorType, setConnectorType] = useState('');
   const [radiusKm, setRadiusKm] = useState(50);
-
   const [recData, setRecData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
   const [selectedStation, setSelectedStation] = useState(null);
 
   const loadRecs = async () => {
@@ -50,160 +32,180 @@ export default function App() {
     }
   };
 
-  // Re-fetch when location or connector changes
   useEffect(() => { loadRecs(); }, [location, connectorType]);
 
   const topId = recData?.top_recommendation?.station_id;
   const stations = recData?.ranked_stations ?? [];
 
-  // §5.1: persistent "Ask IntelliCharge" bottom entry — only on map tab
-  const handleAskAgent = () => setActiveTab('agent');
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: 'var(--asphalt)', overflow: 'hidden' }}>
+      <style>{`
+        /* ── Desktop layout ────────────────────────────────────── */
+        @media (min-width: 900px) {
+          .map-view-area {
+            /* map fills the full remaining height, full width */
+            height: 100% !important;
+          }
+          .desktop-body {
+            flex: 1;
+            display: grid !important;
+            grid-template-columns: 1fr 400px !important;
+            grid-template-rows: 1fr !important;
+            overflow: hidden;
+          }
+          .desktop-left {
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden;
+            border-right: 1px solid var(--slate-border);
+          }
+          .desktop-right {
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden;
+          }
+          .mobile-map-row { display: none !important; }
+          .desktop-map-area {
+            flex: 1;
+            padding: 10px;
+            overflow: hidden;
+          }
+          .station-list-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 12px 80px 12px;
+          }
+          .filter-strip-desktop {
+            border-bottom: 1px solid var(--slate-border);
+          }
+        }
 
-      {/* Navbar — §3: flat bar, no shadow */}
-      <Navbar
-        activeTab={activeTab}
-        setActiveTab={(t) => {
-          setActiveTab(t);
-          if (t === 'agent') setChatOpen(true);
-          else setChatOpen(false);
-        }}
-      />
+        /* ── Mobile layout ─────────────────────────────────────── */
+        @media (max-width: 899px) {
+          .desktop-left { display: contents !important; }
+          .desktop-right { display: contents !important; }
+          .desktop-body {
+            flex: 1;
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden;
+          }
+          .mobile-map-row {
+            height: 42vmax;
+            min-height: 220px;
+            max-height: 45vh;
+            flex-shrink: 0;
+            padding: 8px 10px 0 10px;
+          }
+          .desktop-map-area { display: none !important; }
+          .station-list-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 10px 80px 10px;
+          }
+        }
 
-      {/* Error banner */}
+        @keyframes shimmer {
+          0%   { opacity: 0.35; }
+          50%  { opacity: 0.65; }
+          100% { opacity: 0.35; }
+        }
+      `}</style>
+
+      {/* ── Navbar ──────────────────────────────────────────────── */}
+      <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
+
+      {/* ── Error banner ────────────────────────────────────────── */}
       {error && (
         <div
-          style={{
-            background: 'var(--red-muted)',
-            border: '1px solid var(--red-border)',
-            borderRadius: 0,
-            padding: '8px 16px',
-            fontSize: '0.8rem',
-            color: 'var(--signal-red)',
-          }}
           role="alert"
+          style={{
+            background: 'var(--red-muted)', border: '1px solid var(--red-border)',
+            padding: '8px 16px', fontSize: '0.8rem', color: 'var(--signal-red)',
+          }}
         >
-          {/* §6 error copy: states what happened, what to do */}
           Could not reach IntelliCharge backend. Check that the server is running on port 8000.
         </div>
       )}
 
+      {/* ── Agent view ──────────────────────────────────────────── */}
       {activeTab === 'agent' ? (
-        /* Agent screen — full screen on mobile, also full on desktop tab */
         <div style={{ flex: 1, overflow: 'hidden' }}>
           <AgentChat
-            currentLat={location.lat}
-            currentLng={location.lng}
-            currentBattery={batteryPct}
-            currentConnector={connectorType}
+            currentLat={location.lat} currentLng={location.lng}
+            currentBattery={batteryPct} currentConnector={connectorType}
           />
         </div>
       ) : (
-        /* Map + list layout — §9 responsive */
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+        /* ── Map + list view ─────────────────────────────────── */
+        <div className="desktop-body" style={{ position: 'relative' }}>
 
-          {/* §5.1 Sticky filter strip — always above the list */}
-          <FilterStrip
-            location={location} setLocation={setLocation}
-            batteryPct={batteryPct} setBatteryPct={setBatteryPct}
-            connectorType={connectorType} setConnectorType={setConnectorType}
-            radiusKm={radiusKm} setRadiusKm={setRadiusKm}
-            onSearch={loadRecs}
-            loading={loading}
-          />
-
-          {/* §9 Main content: responsive split */}
-          <div
-            style={{
-              flex: 1,
-              display: 'grid',
-              /* Mobile: single column. Desktop: map 65% | list 35% */
-              gridTemplateColumns: 'minmax(0, 1fr)',
-              gridTemplateRows: '45vh 1fr',
-              overflow: 'hidden',
-            }}
-            className="main-split"
-          >
-            {/* §5.1 Map — ~45% viewport, pulsing pins */}
-            <div style={{ padding: '8px 12px 0 12px', overflow: 'hidden' }}>
-              <MapView
-                userLocation={location}
-                stations={stations}
-                topStationId={topId}
-                onSelectStation={setSelectedStation}
+          {/* LEFT COLUMN — filter strip (desktop) + map */}
+          <div className="desktop-left">
+            {/* Filter strip sits above the map on desktop */}
+            <div className="filter-strip-desktop">
+              <FilterStrip
+                location={location} setLocation={setLocation}
+                batteryPct={batteryPct} setBatteryPct={setBatteryPct}
+                connectorType={connectorType} setConnectorType={setConnectorType}
+                radiusKm={radiusKm} setRadiusKm={setRadiusKm}
+                onSearch={loadRecs} loading={loading}
               />
             </div>
 
-            {/* Ranked list — scrollable */}
-            <div
-              style={{
-                overflowY: 'auto',
-                padding: '8px 12px 80px 12px', /* 80px bottom padding for persistent button */
-              }}
-            >
+            {/* Mobile: map sits in a fixed-height row here */}
+            <div className="mobile-map-row">
+              <MapView
+                userLocation={location} stations={stations}
+                topStationId={topId} onSelectStation={setSelectedStation}
+              />
+            </div>
+
+            {/* Desktop: map fills remaining height */}
+            <div className="desktop-map-area">
+              <MapView
+                userLocation={location} stations={stations}
+                topStationId={topId} onSelectStation={setSelectedStation}
+              />
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN — ranked list */}
+          <div className="desktop-right">
+            <div className="station-list-scroll">
               <StationList
-                recommendationData={recData}
-                loading={loading}
+                recommendationData={recData} loading={loading}
                 onSelectStation={setSelectedStation}
               />
             </div>
           </div>
 
-          {/* §5.1: "💬 Ask IntelliCharge" persistent entry — never hidden */}
+          {/* §5.1: "💬 Ask IntelliCharge" — persistent, never hidden */}
           <div
             style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
+              position: 'absolute', bottom: 0, left: 0, right: 0,
               padding: '10px 12px',
-              background: 'linear-gradient(to top, var(--asphalt) 60%, transparent)',
-              display: 'flex',
-              justifyContent: 'center',
+              background: 'linear-gradient(to top, var(--asphalt) 55%, transparent)',
+              display: 'flex', justifyContent: 'center',
+              pointerEvents: 'none',
             }}
           >
             <button
-              onClick={handleAskAgent}
+              onClick={() => setActiveTab('agent')}
               className="btn btn-primary"
-              style={{
-                width: '100%',
-                maxWidth: '380px',
-                gap: '8px',
-                boxShadow: '0 4px 20px rgba(200, 113, 46, 0.25)',
-              }}
               id="ask-intellicharge-btn"
               aria-label="Open IntelliCharge Agent chat"
+              style={{
+                width: '100%', maxWidth: '320px',
+                boxShadow: '0 4px 20px rgba(200, 113, 46, 0.3)',
+                pointerEvents: 'all',
+              }}
             >
               💬 Ask IntelliCharge
             </button>
           </div>
         </div>
       )}
-
-      {/* §9 Desktop: responsive grid override via inline style tag */}
-      <style>{`
-        @media (min-width: 900px) {
-          .main-split {
-            grid-template-columns: 1fr 380px !important;
-            grid-template-rows: 1fr !important;
-          }
-          .main-split > div:first-child {
-            padding: 10px !important;
-          }
-          .main-split > div:last-child {
-            border-left: 1px solid var(--slate-border);
-            padding-bottom: 80px !important;
-          }
-        }
-
-        @keyframes shimmer {
-          0%   { opacity: 0.4; }
-          50%  { opacity: 0.7; }
-          100% { opacity: 0.4; }
-        }
-      `}</style>
     </div>
   );
 }
