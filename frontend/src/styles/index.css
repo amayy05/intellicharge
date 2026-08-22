@@ -1,22 +1,38 @@
 :root {
-  --bg-dark: #090d16;
-  --bg-card: rgba(15, 23, 42, 0.75);
-  --bg-card-hover: rgba(30, 41, 59, 0.85);
-  --border-color: rgba(51, 65, 85, 0.6);
-  --border-highlight: rgba(6, 182, 212, 0.4);
-  
-  --primary: #06b6d4;
-  --primary-glow: rgba(6, 182, 212, 0.25);
-  --accent-green: #10b981;
-  --accent-amber: #f59e0b;
-  --accent-red: #ef4444;
-  
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
-  
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-heading: 'Outfit', sans-serif;
+  /* PRD Color Palette / Chargemate Reference */
+  --bg-primary: #F7F9F8; /* Light off-white */
+  --primary-accent: #28A879; /* IntelliCharge Green / Mint */
+  --text-dark: #1F2937; /* Default text color */
+  --text-secondary: #6B7280; /* Secondary text */
+  --bg-card: #FFFFFF; /* White Cards */
+  --bg-dark-card: #0A1410; /* Very Dark Green/Black for Hero Cards */
+  --text-light: #F9FAFB; /* Text inside dark cards */
+  --text-muted: #9CA3AF;
+  --border-color: #E5E7EB; /* Border */
+  --warning: #F59E0B; /* Warm amber */
+  --error: #EF4444; /* Muted red */
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Corner Radius */
+  --radius-card: 24px;
+  --radius-btn: 999px;
+  --radius-pill: 999px;
+  --radius-input: 16px;
+
+  /* Shadows */
+  --shadow-subtle: 0 8px 24px rgba(0, 0, 0, 0.04);
+  --shadow-hover: 0 12px 32px rgba(0, 0, 0, 0.08);
 }
 
 * {
@@ -26,36 +42,113 @@
 }
 
 body {
-  background-color: var(--bg-dark);
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(6, 182, 212, 0.08) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.06) 0px, transparent 50%);
-  color: var(--text-main);
+  background-color: var(--bg-primary);
+  color: var(--text-dark);
   font-family: var(--font-sans);
   min-height: 100vh;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-h1, h2, h3, h4, .font-heading {
-  font-family: var(--font-heading);
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  color: var(--text-dark);
 }
 
-/* Glassmorphism Card Utility */
-.glass-panel {
+p {
+  color: var(--text-secondary);
+}
+
+button {
+  font-family: var(--font-sans);
+  cursor: pointer;
+  border: none;
+}
+
+/* Cards */
+.card {
   background: var(--bg-card);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-color);
-  border-radius: 14px;
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-subtle);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.glass-panel-glow {
+.card:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+/* Buttons */
+.btn-primary {
+  background: var(--bg-dark-card);
+  color: var(--text-light);
+  border-radius: var(--radius-pill);
+  padding: var(--space-4) var(--space-6);
+  font-weight: 600;
+  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  transition: opacity 0.2s ease, transform 0.1s ease;
+  width: 100%;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-secondary {
   background: var(--bg-card);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border-highlight);
-  box-shadow: 0 0 25px var(--primary-glow);
-  border-radius: 14px;
+  color: var(--text-dark);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  padding: var(--space-3) var(--space-6);
+  font-weight: 600;
+  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  transition: background 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--bg-primary);
+}
+
+/* Map Overrides */
+.leaflet-container {
+  background: #E5E7EB !important; /* light gray for map loading */
+  font-family: var(--font-sans) !important;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border-color);
+}
+
+/* Map Popups */
+.leaflet-popup-content-wrapper {
+  background: var(--bg-card) !important;
+  color: var(--text-dark) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--shadow-hover) !important;
+}
+
+.leaflet-popup-tip {
+  background: var(--bg-card) !important;
+}
+
+/* Layout Utilities */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
 /* Custom Scrollbar */
@@ -64,73 +157,12 @@ h1, h2, h3, h4, .font-heading {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.5);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(51, 65, 85, 0.8);
+  background: rgba(21, 25, 24, 0.2);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--primary);
-}
-
-/* Leaflet Map overrides for dark theme */
-.leaflet-container {
-  background: #0b1120 !important;
-  font-family: var(--font-sans) !important;
-  border-radius: 14px;
-}
-
-.leaflet-tile {
-  filter: brightness(0.65) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
-}
-
-.leaflet-popup-content-wrapper {
-  background: #0f172a !important;
-  color: #f8fafc !important;
-  border: 1px solid #334155 !important;
-  border-radius: 10px !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7) !important;
-}
-
-.leaflet-popup-tip {
-  background: #0f172a !important;
-}
-
-/* Custom Map Marker Pulse */
-.user-pulse-marker {
-  width: 18px;
-  height: 18px;
-  background: #06b6d4;
-  border: 3px solid #ffffff;
-  border-radius: 50%;
-  box-shadow: 0 0 15px #06b6d4;
-  position: relative;
-}
-
-.user-pulse-marker::after {
-  content: '';
-  position: absolute;
-  top: -8px;
-  left: -8px;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: rgba(6, 182, 212, 0.4);
-  animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
-}
-
-@keyframes pulse-ring {
-  0% { transform: scale(0.5); opacity: 0.8; }
-  100% { transform: scale(2.2); opacity: 0; }
-}
-
-/* Pulse animation for best recommendation tag */
-@keyframes glow-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
-}
-
-.animate-glow {
-  animation: glow-pulse 2s infinite ease-in-out;
+  background: rgba(21, 25, 24, 0.4);
 }

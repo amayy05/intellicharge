@@ -1,13 +1,10 @@
 import React from 'react';
-import { MapPin, BatteryCharging, Gauge, Navigation2, SlidersHorizontal, RefreshCw } from 'lucide-react';
 
 const PRESET_LOCATIONS = [
   { label: '🎓 SJCEM Palghar Campus', lat: 19.6967, lng: 72.7699, region: 'Palghar' },
   { label: '🛍️ Viviana Mall (Thane)', lat: 19.2087, lng: 72.9719, region: 'Thane' },
   { label: '💼 BKC Financial Hub (Mumbai)', lat: 19.0657, lng: 72.8682, region: 'Mumbai' },
   { label: '🚇 Andheri WEH Metro (Mumbai)', lat: 19.1197, lng: 72.8576, region: 'Mumbai' },
-  { label: '🛣️ Manor Highway Plaza (NH48)', lat: 19.7421, lng: 72.9125, region: 'Palghar' },
-  { label: '🏢 Vashi Inorbit (Navi Mumbai)', lat: 19.0652, lng: 72.9984, region: 'Navi Mumbai' },
 ];
 
 const CONNECTOR_OPTIONS = ['All', 'CCS2', 'Type 2', 'CHAdeMO', 'Bharat DC-001'];
@@ -24,102 +21,61 @@ export default function SearchPanel({
   onSearch,
   loading,
 }) {
-  // Max range constant = 280 km
-  const estimatedRangeKm = Math.round((batteryPct / 100) * 280);
+  const estimatedRangeKm = Math.round((batteryPct / 100) * 320);
 
-  const handleUseCurrentLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setLocation({
-            label: '📍 Current Location',
-            lat: Number(pos.coords.latitude.toFixed(4)),
-            lng: Number(pos.coords.longitude.toFixed(4)),
-            region: 'GPS',
-          });
-        },
-        (err) => {
-          alert('Unable to retrieve GPS location: ' + err.message);
-        }
-      );
-    } else {
-      alert('Geolocation is not supported by your browser.');
-    }
+  const getBatteryColor = (pct) => {
+    if (pct > 20) return 'var(--primary-accent)';
+    if (pct > 10) return 'var(--warning)';
+    return 'var(--error)';
   };
 
   return (
-    <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h2 style={{ fontSize: '1rem', fontWeight: '600', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <SlidersHorizontal size={18} color="#06b6d4" />
-          Trip & EV Parameters
-        </h2>
-        <button
-          onClick={handleUseCurrentLocation}
-          style={{
-            background: 'rgba(6, 182, 212, 0.15)',
-            border: '1px solid rgba(6, 182, 212, 0.3)',
-            borderRadius: '6px',
-            padding: '4px 10px',
-            color: '#06b6d4',
-            fontSize: '0.75rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-          }}
-        >
-          <Navigation2 size={12} />
-          Use GPS
-        </button>
-      </div>
-
-      {/* Location Preset Selector */}
-      <div>
-        <label style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '6px', display: 'block' }}>
-          Origin / EV Location
-        </label>
-        <select
-          value={`${location.lat},${location.lng}`}
-          onChange={(e) => {
-            const [latStr, lngStr] = e.target.value.split(',');
-            const matched = PRESET_LOCATIONS.find((p) => p.lat === Number(latStr) && p.lng === Number(lngStr));
-            if (matched) {
-              setLocation(matched);
-            } else {
-              setLocation({ label: 'Custom Location', lat: Number(latStr), lng: Number(lngStr), region: 'Custom' });
-            }
-          }}
-          style={{
-            width: '100%',
-            padding: '10px 12px',
-            background: 'rgba(15, 23, 42, 0.8)',
-            border: '1px solid #334155',
-            borderRadius: '8px',
-            color: '#f8fafc',
-            fontSize: '0.85rem',
-            outline: 'none',
-          }}
-        >
-          {PRESET_LOCATIONS.map((preset, idx) => (
-            <option key={idx} value={`${preset.lat},${preset.lng}`}>
-              {preset.label} ({preset.region})
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Battery State of Charge Slider */}
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-          <label style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <BatteryCharging size={16} color={batteryPct <= 20 ? '#ef4444' : '#10b981'} />
-            Battery Level (SoC)
-          </label>
-          <span style={{ fontSize: '0.9rem', fontWeight: '700', color: batteryPct <= 20 ? '#ef4444' : '#06b6d4' }}>
-            {batteryPct}% <span style={{ fontSize: '0.75rem', fontWeight: '400', color: '#94a3b8' }}> (~{estimatedRangeKm} km safe range)</span>
-          </span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      
+      {/* Battery / Car Overview Card - DARK THEME */}
+      <div className="card" style={{ background: 'var(--bg-dark-card)', color: 'var(--text-light)', border: 'none' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+          <div>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+              Battery Health
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+              <h2 style={{ fontSize: '36px', margin: 0, fontWeight: '400' }}>{batteryPct}<span style={{ fontSize: '24px' }}>%</span></h2>
+            </div>
+            <span style={{ fontSize: '11px', color: 'var(--primary-accent)' }}>Working on high quality</span>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+              Remaining
+            </span>
+            <div style={{ marginTop: '4px' }}>
+              <h2 style={{ fontSize: '20px', margin: 0, fontWeight: '500' }}>{estimatedRangeKm} km</h2>
+            </div>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Out of 320km</span>
+          </div>
         </div>
+        
+        {/* Battery visual bar (Segmented) */}
+        <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', height: '40px', width: '100%' }}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div 
+              key={i} 
+              style={{
+                flex: 1,
+                background: (i * 20) < batteryPct ? getBatteryColor(batteryPct) : 'rgba(255,255,255,0.1)',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'flex-end',
+                justifyContent: 'center',
+                paddingBottom: '4px'
+              }}
+            >
+              {(i * 20) < batteryPct && <span style={{ fontSize: '10px', fontWeight: 'bold', color: '#0A1410' }}>{(i+1)*20}%</span>}
+            </div>
+          ))}
+        </div>
+        
+        {/* Hidden input to allow changing battery for demo purposes */}
         <input
           type="range"
           min="5"
@@ -127,103 +83,101 @@ export default function SearchPanel({
           step="5"
           value={batteryPct}
           onChange={(e) => setBatteryPct(Number(e.target.value))}
+          style={{ width: '100%', opacity: 0.2 }}
+        />
+      </div>
+
+      {/* Destination / Search Params Card */}
+      <div className="card">
+        <label style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>
+          Origin Location
+        </label>
+        <select
+          value={`${location.lat},${location.lng}`}
+          onChange={(e) => {
+            const [latStr, lngStr] = e.target.value.split(',');
+            const matched = PRESET_LOCATIONS.find((p) => p.lat === Number(latStr) && p.lng === Number(lngStr));
+            if (matched) setLocation(matched);
+          }}
           style={{
             width: '100%',
-            accentColor: batteryPct <= 20 ? '#ef4444' : '#06b6d4',
-            cursor: 'pointer',
+            padding: '12px 16px',
+            background: 'var(--bg-primary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-input)',
+            color: 'var(--text-dark)',
+            fontSize: '14px',
+            outline: 'none',
+            fontWeight: '500',
+            marginBottom: '16px'
           }}
-        />
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>
-          <span>5% (14 km)</span>
-          <span>50% (140 km)</span>
-          <span>100% (280 km)</span>
-        </div>
-      </div>
-
-      {/* Connector Filter */}
-      <div>
-        <label style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '8px', display: 'block' }}>
-          Connector Compatibility
-        </label>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-          {CONNECTOR_OPTIONS.map((cType) => {
-            const isSelected = (cType === 'All' && !connectorType) || connectorType === cType;
-            return (
+        >
+          {PRESET_LOCATIONS.map((preset, idx) => (
+            <option key={idx} value={`${preset.lat},${preset.lng}`}>
+              {preset.label}
+            </option>
+          ))}
+        </select>
+        
+        {/* Connector Selection */}
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>
+            Connector Type
+          </label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {CONNECTOR_OPTIONS.map(c => (
               <button
-                key={cType}
-                type="button"
-                onClick={() => setConnectorType(cType === 'All' ? '' : cType)}
+                key={c}
+                onClick={() => setConnectorType(c)}
                 style={{
                   padding: '6px 12px',
-                  borderRadius: '6px',
-                  fontSize: '0.75rem',
-                  fontWeight: isSelected ? '600' : '400',
-                  background: isSelected ? 'rgba(6, 182, 212, 0.25)' : 'rgba(30, 41, 59, 0.6)',
-                  border: isSelected ? '1px solid #06b6d4' : '1px solid #334155',
-                  color: isSelected ? '#06b6d4' : '#cbd5e1',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
+                  borderRadius: 'var(--radius-pill)',
+                  border: `1px solid ${connectorType === c ? 'var(--primary-accent)' : 'var(--border-color)'}`,
+                  background: connectorType === c ? 'rgba(40, 168, 121, 0.1)' : 'transparent',
+                  color: connectorType === c ? 'var(--primary-accent)' : 'var(--text-secondary)',
+                  fontWeight: '600',
+                  fontSize: '12px'
                 }}
               >
-                {cType}
+                {c}
               </button>
-            );
-          })}
+            ))}
+          </div>
+        </div>
+
+        {/* Search Radius Slider */}
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+            <label style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase' }}>Search Radius</label>
+            <span style={{ fontSize: '13px', color: 'var(--primary-accent)', fontWeight: '600' }}>{radiusKm} km</span>
+          </div>
+          <input
+            type="range"
+            min="10"
+            max="80"
+            step="5"
+            value={radiusKm}
+            onChange={(e) => setRadiusKm(Number(e.target.value))}
+            style={{ width: '100%', accentColor: 'var(--primary-accent)', cursor: 'pointer' }}
+          />
         </div>
       </div>
 
-      {/* Search Radius Slider */}
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-          <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Search Radius</label>
-          <span style={{ fontSize: '0.8rem', color: '#06b6d4', fontWeight: '600' }}>{radiusKm} km</span>
-        </div>
-        <input
-          type="range"
-          min="10"
-          max="80"
-          step="5"
-          value={radiusKm}
-          onChange={(e) => setRadiusKm(Number(e.target.value))}
-          style={{ width: '100%', accentColor: '#06b6d4', cursor: 'pointer' }}
-        />
-      </div>
-
-      {/* Execute Button */}
+      {/* Main AI CTA */}
       <button
         onClick={onSearch}
         disabled={loading}
-        style={{
-          width: '100%',
-          padding: '12px',
-          borderRadius: '10px',
-          background: 'linear-gradient(135deg, #06b6d4, #0284c7)',
-          border: 'none',
-          color: '#ffffff',
-          fontWeight: '600',
-          fontSize: '0.9rem',
-          cursor: loading ? 'not-allowed' : 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '8px',
-          boxShadow: '0 4px 15px rgba(6, 182, 212, 0.3)',
-          transition: 'all 0.2s ease',
-          opacity: loading ? 0.7 : 1,
-        }}
+        className="btn-primary"
+        style={{ padding: '20px', flexDirection: 'column', gap: '4px', opacity: loading ? 0.7 : 1 }}
       >
-        {loading ? (
-          <>
-            <RefreshCw size={18} className="animate-spin" />
-            Computing Arrival Queues...
-          </>
-        ) : (
-          <>
-            <Gauge size={18} />
-            Find Optimal Stations
-          </>
-        )}
+        <span style={{ fontSize: '16px', letterSpacing: '1px', textTransform: 'uppercase' }}>
+          {loading ? 'Finding Nearest Stations...' : 'Get Started'}
+        </span>
       </button>
+      <p style={{ textAlign: 'center', fontSize: '12px', margin: 0, color: 'var(--text-muted)' }}>
+        AI-powered recommendation based on distance, compatibility & predicted wait.
+      </p>
+
     </div>
   );
 }
