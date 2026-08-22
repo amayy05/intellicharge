@@ -1,76 +1,101 @@
+/**
+ * StationList — §5.1 ranked list + §6 states
+ *
+ * §6 States handled:
+ *   - Loading: ChargeBar shimmer skeletons (same layout, no shift when data lands)
+ *   - Empty: "No stations found within X km. Try widening your search radius…" — no apology, no dead end
+ *   - Normal: ranked station cards
+ */
+
 import React from 'react';
 import StationCard from './StationCard';
-import { Sparkles, Info, ShieldAlert } from 'lucide-react';
+import ChargeBar from './ChargeBar';
 
-export default function StationList({
-  recommendationData,
-  loading,
-  onSelectStation,
-}) {
+// §6: shimmer skeleton — same shape as real card so layout doesn't shift on load
+function SkeletonCard() {
+  return (
+    <div
+      className="card"
+      style={{ padding: '14px 16px', borderLeft: '3px solid var(--slate-border)' }}
+      aria-hidden="true"
+    >
+      {/* Fake rank + name lines */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', alignItems: 'center' }}>
+        <div style={{ width: 28, height: 18, background: 'var(--slate-dim)', borderRadius: 'var(--radius-chip)', animation: 'shimmer 1.6s ease-in-out infinite' }} />
+        <div style={{ flex: 1, height: 14, background: 'var(--slate-dim)', borderRadius: 3, animation: 'shimmer 1.6s ease-in-out infinite 0.1s' }} />
+      </div>
+      <div style={{ height: 10, width: '60%', background: 'var(--slate-dim)', borderRadius: 3, marginBottom: '12px', animation: 'shimmer 1.6s ease-in-out infinite 0.2s' }} />
+      {/* §6: ChargeBar shimmer — previews the signature element so nothing looks unfamiliar when data lands */}
+      <ChargeBar loading={true} />
+    </div>
+  );
+}
+
+export default function StationList({ recommendationData, loading, onSelectStation }) {
+
+  // §6 Loading state
   if (loading) {
     return (
-      <div className="glass-panel" style={{ padding: '30px', textAlign: 'center' }}>
-        <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Evaluating live network & predicting arrival queues...</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }} aria-label="Loading stations" aria-busy="true">
+        {[1, 2, 3, 4].map((i) => <SkeletonCard key={i} />)}
       </div>
     );
   }
 
-  if (!recommendationData || !recommendationData.ranked_stations || recommendationData.ranked_stations.length === 0) {
+  const stations = recommendationData?.ranked_stations ?? [];
+
+  // §6 Empty state: "No stations found… Try widening your search radius…" — states what happened and what to do next, no apology
+  if (!loading && stations.length === 0) {
     return (
-      <div className="glass-panel" style={{ padding: '30px', textAlign: 'center' }}>
-        <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
-          No charging stations found. Adjust your origin location, radius, or battery percentage.
+      <div
+        className="card"
+        style={{ padding: '20px 16px', textAlign: 'center' }}
+        role="status"
+        aria-live="polite"
+      >
+        <p style={{ fontFamily: 'var(--font-display)', fontSize: '0.9rem', color: 'var(--fog)', marginBottom: '6px' }}>
+          No stations found within {recommendationData?.radius_km ?? 50} km.
+        </p>
+        <p style={{ fontSize: '0.8rem', color: 'var(--fog-muted)', lineHeight: 1.5 }}>
+          Try widening your search radius or checking a different connector type.
         </p>
       </div>
     );
   }
 
-  const { ranked_stations, top_recommendation, summary_insight, reachable_count, total_found } = recommendationData;
+  const top = recommendationData?.top_recommendation;
+  const insight = recommendationData?.summary_insight;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-      {/* Insight Summary Banner */}
-      {summary_insight && (
-        <div
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {/* AI insight — plain language, §10 */}
+      {insight && (
+        <p
           style={{
-            background: 'rgba(6, 182, 212, 0.12)',
-            border: '1px solid rgba(6, 182, 212, 0.3)',
-            borderRadius: '10px',
-            padding: '12px 16px',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '10px',
-            fontSize: '0.8rem',
-            color: '#e2e8f0',
+            fontSize: '0.78rem',
+            color: 'var(--fog-muted)',
+            padding: '8px 12px',
+            background: 'var(--slate-dim)',
+            borderRadius: 'var(--radius-card)',
+            border: '1px solid var(--slate-border)',
+            lineHeight: 1.5,
           }}
+          role="status"
+          aria-live="polite"
         >
-          <Sparkles size={18} color="#06b6d4" style={{ flexShrink: 0, marginTop: '2px' }} />
-          <div>
-            <strong style={{ color: '#06b6d4', display: 'block', marginBottom: '2px' }}>AI Routing Recommendation</strong>
-            <span>{summary_insight}</span>
-          </div>
-        </div>
+          {insight}
+        </p>
       )}
 
-      {/* Reachability Status */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px', fontSize: '0.75rem', color: '#94a3b8' }}>
-        <span>
-          Showing <strong>{ranked_stations.length}</strong> stations ({reachable_count} safely reachable)
-        </span>
-        <span>Sorted by multi-factor score (ETA + wait time)</span>
-      </div>
-
-      {/* Ranked Cards List */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {ranked_stations.map((station, index) => (
-          <StationCard
-            key={station.station_id}
-            station={station}
-            isTop={index === 0}
-            onSelect={() => onSelectStation && onSelectStation(station)}
-          />
-        ))}
-      </div>
+      {/* Ranked cards */}
+      {stations.map((st, idx) => (
+        <StationCard
+          key={st.station_id}
+          station={st}
+          isTop={idx === 0}
+          onSelect={() => onSelectStation?.(st)}
+        />
+      ))}
     </div>
   );
 }

@@ -1,229 +1,154 @@
+/**
+ * FilterStrip — §5.1 sticky filter strip
+ * "🔋 42%  CCS2 ▾  2.1 km ▾" — the PRD's wireframe
+ * §3: Copper primary button. §8: 44px min touch targets.
+ * §10: "Navigate" not "Go." Buttons say what they do.
+ */
+
 import React from 'react';
-import { MapPin, BatteryCharging, Gauge, Navigation2, SlidersHorizontal, RefreshCw } from 'lucide-react';
 
 const PRESET_LOCATIONS = [
-  { label: '🎓 SJCEM Palghar Campus', lat: 19.6967, lng: 72.7699, region: 'Palghar' },
-  { label: '🛍️ Viviana Mall (Thane)', lat: 19.2087, lng: 72.9719, region: 'Thane' },
-  { label: '💼 BKC Financial Hub (Mumbai)', lat: 19.0657, lng: 72.8682, region: 'Mumbai' },
-  { label: '🚇 Andheri WEH Metro (Mumbai)', lat: 19.1197, lng: 72.8576, region: 'Mumbai' },
-  { label: '🛣️ Manor Highway Plaza (NH48)', lat: 19.7421, lng: 72.9125, region: 'Palghar' },
-  { label: '🏢 Vashi Inorbit (Navi Mumbai)', lat: 19.0652, lng: 72.9984, region: 'Navi Mumbai' },
+  { label: 'SJCEM Palghar', lat: 19.6967, lng: 72.7699 },
+  { label: 'Thane Viviana', lat: 19.2087, lng: 72.9719 },
+  { label: 'BKC Mumbai', lat: 19.0657, lng: 72.8682 },
+  { label: 'Andheri WEH', lat: 19.1197, lng: 72.8576 },
+  { label: 'Manor NH48', lat: 19.7421, lng: 72.9125 },
+  { label: 'Vashi Inorbit', lat: 19.0652, lng: 72.9984 },
 ];
 
-const CONNECTOR_OPTIONS = ['All', 'CCS2', 'Type 2', 'CHAdeMO', 'Bharat DC-001'];
+const CONNECTORS = ['Any', 'CCS2', 'Type 2', 'CHAdeMO', 'Bharat DC-001'];
 
-export default function SearchPanel({
-  location,
-  setLocation,
-  batteryPct,
-  setBatteryPct,
-  connectorType,
-  setConnectorType,
-  radiusKm,
-  setRadiusKm,
-  onSearch,
-  loading,
+// Estimated safe driving range from battery %
+const estimatedRange = (pct) => Math.round((pct / 100) * 280);
+
+export default function FilterStrip({
+  location, setLocation,
+  batteryPct, setBatteryPct,
+  connectorType, setConnectorType,
+  radiusKm, setRadiusKm,
+  onSearch, loading,
 }) {
-  // Max range constant = 280 km
-  const estimatedRangeKm = Math.round((batteryPct / 100) * 280);
+  const range = estimatedRange(batteryPct);
+  const batteryLow = batteryPct <= 20;
 
-  const handleUseCurrentLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setLocation({
-            label: '📍 Current Location',
-            lat: Number(pos.coords.latitude.toFixed(4)),
-            lng: Number(pos.coords.longitude.toFixed(4)),
-            region: 'GPS',
-          });
-        },
-        (err) => {
-          alert('Unable to retrieve GPS location: ' + err.message);
-        }
-      );
-    } else {
-      alert('Geolocation is not supported by your browser.');
-    }
+  const handleGPS = () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setLocation({ label: 'GPS Location', lat: +pos.coords.latitude.toFixed(5), lng: +pos.coords.longitude.toFixed(5) }),
+      () => {},
+    );
   };
 
   return (
-    <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h2 style={{ fontSize: '1rem', fontWeight: '600', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <SlidersHorizontal size={18} color="#06b6d4" />
-          Trip & EV Parameters
-        </h2>
-        <button
-          onClick={handleUseCurrentLocation}
-          style={{
-            background: 'rgba(6, 182, 212, 0.15)',
-            border: '1px solid rgba(6, 182, 212, 0.3)',
-            borderRadius: '6px',
-            padding: '4px 10px',
-            color: '#06b6d4',
-            fontSize: '0.75rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-          }}
-        >
-          <Navigation2 size={12} />
-          Use GPS
-        </button>
-      </div>
-
-      {/* Location Preset Selector */}
-      <div>
-        <label style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '6px', display: 'block' }}>
-          Origin / EV Location
-        </label>
+    <div
+      style={{
+        background: 'var(--slate)',
+        borderBottom: '1px solid var(--slate-border)',
+        padding: '10px 16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+      }}
+    >
+      {/* Row 1: location + GPS */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
         <select
           value={`${location.lat},${location.lng}`}
           onChange={(e) => {
-            const [latStr, lngStr] = e.target.value.split(',');
-            const matched = PRESET_LOCATIONS.find((p) => p.lat === Number(latStr) && p.lng === Number(lngStr));
-            if (matched) {
-              setLocation(matched);
-            } else {
-              setLocation({ label: 'Custom Location', lat: Number(latStr), lng: Number(lngStr), region: 'Custom' });
-            }
+            const [lat, lng] = e.target.value.split(',').map(Number);
+            const found = PRESET_LOCATIONS.find(p => p.lat === lat && p.lng === lng);
+            setLocation(found ?? { label: 'Custom', lat, lng });
           }}
           style={{
-            width: '100%',
-            padding: '10px 12px',
-            background: 'rgba(15, 23, 42, 0.8)',
-            border: '1px solid #334155',
-            borderRadius: '8px',
-            color: '#f8fafc',
-            fontSize: '0.85rem',
+            flex: 1,
+            minWidth: '160px',
+            background: 'var(--slate-dim)',
+            border: '1px solid var(--slate-border)',
+            borderRadius: 'var(--radius-chip)',
+            color: 'var(--fog)',
+            fontFamily: 'var(--font-body)',
+            fontSize: '0.82rem',
+            padding: '7px 10px',
             outline: 'none',
+            cursor: 'pointer',
           }}
+          aria-label="Select origin location"
         >
-          {PRESET_LOCATIONS.map((preset, idx) => (
-            <option key={idx} value={`${preset.lat},${preset.lng}`}>
-              {preset.label} ({preset.region})
-            </option>
+          {PRESET_LOCATIONS.map((p) => (
+            <option key={p.label} value={`${p.lat},${p.lng}`}>{p.label}</option>
           ))}
         </select>
+
+        <button
+          onClick={handleGPS}
+          className="btn btn-ghost"
+          style={{ padding: '7px 12px', fontSize: '0.78rem', minHeight: '34px' }}
+          aria-label="Use GPS location"
+        >
+          📍 GPS
+        </button>
       </div>
 
-      {/* Battery State of Charge Slider */}
+      {/* Row 2: Battery slider — §8 data in IBM Plex Mono */}
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-          <label style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <BatteryCharging size={16} color={batteryPct <= 20 ? '#ef4444' : '#10b981'} />
-            Battery Level (SoC)
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+          <label style={{ fontSize: '0.78rem', color: 'var(--fog-muted)' }}>
+            🔋 Battery
           </label>
-          <span style={{ fontSize: '0.9rem', fontWeight: '700', color: batteryPct <= 20 ? '#ef4444' : '#06b6d4' }}>
-            {batteryPct}% <span style={{ fontSize: '0.75rem', fontWeight: '400', color: '#94a3b8' }}> (~{estimatedRangeKm} km safe range)</span>
+          <span style={{ fontFamily: 'var(--font-data)', fontSize: '0.82rem', color: batteryLow ? 'var(--signal-red)' : 'var(--volt-cyan)', fontWeight: 500 }}>
+            {batteryPct}% &nbsp;·&nbsp; ~{range} km
           </span>
         </div>
         <input
           type="range"
-          min="5"
-          max="100"
-          step="5"
+          min="5" max="100" step="5"
           value={batteryPct}
-          onChange={(e) => setBatteryPct(Number(e.target.value))}
-          style={{
-            width: '100%',
-            accentColor: batteryPct <= 20 ? '#ef4444' : '#06b6d4',
-            cursor: 'pointer',
-          }}
-        />
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>
-          <span>5% (14 km)</span>
-          <span>50% (140 km)</span>
-          <span>100% (280 km)</span>
-        </div>
-      </div>
-
-      {/* Connector Filter */}
-      <div>
-        <label style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '8px', display: 'block' }}>
-          Connector Compatibility
-        </label>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-          {CONNECTOR_OPTIONS.map((cType) => {
-            const isSelected = (cType === 'All' && !connectorType) || connectorType === cType;
-            return (
-              <button
-                key={cType}
-                type="button"
-                onClick={() => setConnectorType(cType === 'All' ? '' : cType)}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  fontSize: '0.75rem',
-                  fontWeight: isSelected ? '600' : '400',
-                  background: isSelected ? 'rgba(6, 182, 212, 0.25)' : 'rgba(30, 41, 59, 0.6)',
-                  border: isSelected ? '1px solid #06b6d4' : '1px solid #334155',
-                  color: isSelected ? '#06b6d4' : '#cbd5e1',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {cType}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Search Radius Slider */}
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-          <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Search Radius</label>
-          <span style={{ fontSize: '0.8rem', color: '#06b6d4', fontWeight: '600' }}>{radiusKm} km</span>
-        </div>
-        <input
-          type="range"
-          min="10"
-          max="80"
-          step="5"
-          value={radiusKm}
-          onChange={(e) => setRadiusKm(Number(e.target.value))}
-          style={{ width: '100%', accentColor: '#06b6d4', cursor: 'pointer' }}
+          onChange={(e) => setBatteryPct(+e.target.value)}
+          style={{ width: '100%', accentColor: batteryLow ? 'var(--signal-red)' : 'var(--copper)', cursor: 'pointer' }}
+          aria-label={`Battery level: ${batteryPct}%`}
         />
       </div>
 
-      {/* Execute Button */}
-      <button
-        onClick={onSearch}
-        disabled={loading}
-        style={{
-          width: '100%',
-          padding: '12px',
-          borderRadius: '10px',
-          background: 'linear-gradient(135deg, #06b6d4, #0284c7)',
-          border: 'none',
-          color: '#ffffff',
-          fontWeight: '600',
-          fontSize: '0.9rem',
-          cursor: loading ? 'not-allowed' : 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '8px',
-          boxShadow: '0 4px 15px rgba(6, 182, 212, 0.3)',
-          transition: 'all 0.2s ease',
-          opacity: loading ? 0.7 : 1,
-        }}
-      >
-        {loading ? (
-          <>
-            <RefreshCw size={18} className="animate-spin" />
-            Computing Arrival Queues...
-          </>
-        ) : (
-          <>
-            <Gauge size={18} />
-            Find Optimal Stations
-          </>
-        )}
-      </button>
+      {/* Row 3: Connector chips + Radius + Search */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+        {CONNECTORS.map((c) => {
+          const active = (c === 'Any' && !connectorType) || connectorType === c;
+          return (
+            <button
+              key={c}
+              onClick={() => setConnectorType(c === 'Any' ? '' : c)}
+              className={`chip${active ? ' chip--active' : ''}`}
+              aria-pressed={active}
+            >
+              {c}
+            </button>
+          );
+        })}
+
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <label style={{ fontSize: '0.75rem', color: 'var(--fog-muted)', whiteSpace: 'nowrap' }}>
+            <span style={{ fontFamily: 'var(--font-data)' }}>{radiusKm} km</span> radius
+          </label>
+          <input
+            type="range"
+            min="10" max="80" step="5"
+            value={radiusKm}
+            onChange={(e) => setRadiusKm(+e.target.value)}
+            style={{ width: '70px', accentColor: 'var(--copper)' }}
+            aria-label={`Search radius: ${radiusKm} km`}
+          />
+        </div>
+
+        <button
+          onClick={onSearch}
+          disabled={loading}
+          className="btn btn-primary"
+          style={{ padding: '8px 16px', fontSize: '0.82rem', minHeight: '34px' }}
+          id="find-stations-btn"
+        >
+          {loading ? 'Searching…' : 'Find Stations'}
+        </button>
+      </div>
     </div>
   );
 }

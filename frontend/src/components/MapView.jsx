@@ -1,50 +1,82 @@
+/**
+ * MapView — §5.1 map (~45% viewport) + §7 Motion
+ *
+ * §7: ONE animated moment — the recommended station's pin pulses.
+ *     Pulse rate tied to wait time: short wait = fast pulse (0.8s), long wait = slow (2.5s).
+ *     Everything else is still. No hover bounce, no card-entrance animations.
+ *     prefers-reduced-motion: static colored ring.
+ *
+ * ChargeBar appears inside map tooltips — same visual vocabulary as the list (§4).
+ */
+
 import React, { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { ExternalLink, Zap, Clock, BatteryCharging, ShieldAlert } from 'lucide-react';
+import ChargeBar from './ChargeBar';
 
-// Fix Leaflet default icon paths in bundlers
 delete L.Icon.Default.prototype._getIconUrl;
 
-const createUserIcon = () =>
-  L.divIcon({
-    className: 'custom-user-marker',
-    html: `<div class="user-pulse-marker"></div>`,
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
-  });
+// §7: pulse duration computed from wait time
+function pulseDuration(waitMinutes) {
+  if (waitMinutes <= 5)  return '0.8s';   // short wait — fast pulse
+  if (waitMinutes <= 15) return '1.4s';   // mid wait
+  return '2.5s';                           // long wait — slow and dull
+}
 
-const createStationIcon = (colorHex, isTop = false) => {
-  const size = isTop ? 36 : 28;
+// Pin color matches charge-bar color for that station (§7: "pulse rate = charge-bar color")
+function pinColor(waitMinutes, isReachable) {
+  if (!isReachable) return '#5C5955';       // fog-dim — unreachable
+  if (waitMinutes <= 5)  return '#3FD6C4';  // --volt-cyan
+  if (waitMinutes <= 12) return '#5EC9BA';
+  if (waitMinutes <= 18) return '#C8712E';  // --copper
+  if (waitMinutes <= 24) return '#D4631A';
+  return '#E85C4A';                         // --signal-red
+}
+
+function createStationPin(waitMinutes, isTop, isReachable) {
+  const color = pinColor(waitMinutes, isReachable);
+  const duration = pulseDuration(waitMinutes);
+  const size = isTop ? 20 : 14;
+
+  // §7 prefers-reduced-motion handled via CSS in index.css
   return L.divIcon({
-    className: 'custom-station-marker',
+    className: '',
     html: `
-      <div style="
-        width: ${size}px;
-        height: ${size}px;
-        border-radius: 50%;
-        background: ${colorHex};
-        border: 2px solid #ffffff;
-        box-shadow: 0 0 ${isTop ? '15px' : '8px'} ${colorHex};
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #ffffff;
-        font-weight: 700;
-        font-size: ${isTop ? '14px' : '11px'};
-      ">
-        ⚡
+      <div
+        class="station-pin"
+        style="
+          width: ${size}px;
+          height: ${size}px;
+          background: ${color};
+          --pin-color: ${color};
+          --pulse-duration: ${duration};
+          ${!isReachable ? 'opacity: 0.45;' : ''}
+        "
+        role="img"
+        aria-label="Station with ${Math.round(waitMinutes)} minute wait"
+      >
+        ${isTop ? '<div class="station-pin__ring" style="--pin-color:' + color + '; --pulse-duration:' + duration + '"></div>' : ''}
       </div>
     `,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -(size / 2 + 4)],
   });
-};
+}
 
-function ChangeMapView({ center, zoom = 11 }) {
+function createUserPin() {
+  return L.divIcon({
+    className: '',
+    html: `<div class="user-pin" aria-label="Your location"></div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+  });
+}
+
+function RecenterMap({ center, zoom }) {
   const map = useMap();
   useEffect(() => {
-    map.setView(center, zoom);
+    map.setView(center, zoom, { animate: true });
   }, [center, zoom, map]);
   return null;
 }
@@ -53,119 +85,105 @@ export default function MapView({ userLocation, stations = [], topStationId, onS
   const center = [userLocation.lat, userLocation.lng];
 
   return (
-    <div className="glass-panel" style={{ height: '100%', minHeight: '460px', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ height: '100%', borderRadius: 'var(--radius-card)', overflow: 'hidden' }}>
       <MapContainer
         center={center}
         zoom={11}
-        scrollWheelZoom={true}
-        style={{ height: '100%', minHeight: '460px', width: '100%' }}
+        scrollWheelZoom
+        style={{ height: '100%', width: '100%' }}
       >
-        <ChangeMapView center={center} zoom={11} />
+        <RecenterMap center={center} zoom={11} />
+
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         />
 
-        {/* User Current Location Marker */}
-        <Marker position={[userLocation.lat, userLocation.lng]} icon={createUserIcon()}>
+        {/* User location — Copper pin */}
+        <Marker position={[userLocation.lat, userLocation.lng]} icon={createUserPin()}>
           <Popup>
-            <div style={{ padding: '4px' }}>
-              <p style={{ fontWeight: '700', fontSize: '0.85rem', color: '#06b6d4' }}>📍 Your Location</p>
-              <p style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{userLocation.label || 'Origin Point'}</p>
+            <div style={{ padding: '10px 12px', minWidth: '140px' }}>
+              <p style={{ fontFamily: 'var(--font-display)', fontSize: '0.85rem', color: 'var(--fog)', fontWeight: '600' }}>
+                📍 Your location
+              </p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--fog-muted)', marginTop: '2px' }}>
+                {userLocation.label ?? 'Origin'}
+              </p>
             </div>
           </Popup>
         </Marker>
 
-        {/* Station Markers */}
+        {/* Station pins — §7 pulse rate tied to wait */}
         {stations.map((st) => {
           const isTop = st.station_id === topStationId;
-          const isReachable = st.breakdown?.is_reachable;
-          let markerColor = '#10b981'; // Green (Low wait)
-
-          if (!isReachable) {
-            markerColor = '#64748b'; // Gray (Unreachable)
-          } else if (isTop) {
-            markerColor = '#06b6d4'; // Cyan (Top Pick)
-          } else if (st.breakdown.predicted_wait_minutes > 15) {
-            markerColor = '#ef4444'; // Red (Congested)
-          } else if (st.breakdown.predicted_wait_minutes > 5) {
-            markerColor = '#f59e0b'; // Amber (Moderate)
-          }
+          const wait = st.breakdown?.predicted_wait_minutes ?? 0;
+          const isReachable = st.breakdown?.is_reachable ?? true;
+          const connectors = Array.isArray(st.connector_types)
+            ? st.connector_types
+            : st.connector_types?.split(',').map(s => s.trim()) ?? [];
 
           return (
             <Marker
               key={st.station_id}
               position={[st.latitude, st.longitude]}
-              icon={createStationIcon(markerColor, isTop)}
-              eventHandlers={{
-                click: () => onSelectStation && onSelectStation(st),
-              }}
+              icon={createStationPin(wait, isTop, isReachable)}
+              eventHandlers={{ click: () => onSelectStation?.(st) }}
             >
               <Popup>
-                <div style={{ minWidth: '220px', padding: '6px' }}>
+                {/* §4 ChargeBar in tooltip — same vocabulary as the list */}
+                <div style={{ padding: '12px', minWidth: '210px' }}>
                   {isTop && (
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        background: 'rgba(6, 182, 212, 0.2)',
-                        color: '#06b6d4',
-                        fontSize: '0.65rem',
-                        fontWeight: '700',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        marginBottom: '4px',
-                      }}
-                    >
-                      ⭐ TOP RECOMMENDATION
+                    <span style={{
+                      display: 'inline-block',
+                      background: 'var(--copper-muted)',
+                      color: 'var(--copper)',
+                      border: '1px solid var(--copper-border)',
+                      fontSize: '0.65rem',
+                      fontWeight: '600',
+                      padding: '2px 6px',
+                      borderRadius: 'var(--radius-chip)',
+                      marginBottom: '6px',
+                      fontFamily: 'var(--font-body)',
+                    }}>
+                      Best match
                     </span>
                   )}
-                  <h3 style={{ fontSize: '0.9rem', fontWeight: '700', color: '#f8fafc', marginBottom: '2px' }}>
+                  <p style={{ fontFamily: 'var(--font-display)', fontWeight: '600', fontSize: '0.88rem', color: 'var(--fog)', marginBottom: '2px' }}>
                     {st.station_name}
-                  </h3>
-                  <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '8px' }}>
-                    {st.operator} • {st.city_region}
+                  </p>
+                  <p style={{ fontSize: '0.72rem', color: 'var(--fog-muted)', marginBottom: '10px' }}>
+                    {st.operator}
                   </p>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '0.75rem', marginBottom: '10px' }}>
-                    <div style={{ background: '#1e293b', padding: '4px 8px', borderRadius: '6px' }}>
-                      <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.65rem' }}>Est. Wait:</span>
-                      <strong style={{ color: markerColor }}>{st.breakdown.predicted_wait_minutes} min</strong>
-                    </div>
-                    <div style={{ background: '#1e293b', padding: '4px 8px', borderRadius: '6px' }}>
-                      <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.65rem' }}>Driving Dist:</span>
-                      <strong style={{ color: '#f8fafc' }}>{st.breakdown.road_distance_km} km</strong>
-                    </div>
+                  {/* §4: ChargeBar in tooltip */}
+                  <ChargeBar waitMinutes={wait} size="sm" />
+
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '8px', fontSize: '0.72rem' }}>
+                    <span>
+                      <span style={{ color: 'var(--fog-dim)' }}>dist </span>
+                      <span className="font-mono" style={{ color: 'var(--fog)' }}>{st.breakdown?.road_distance_km} km</span>
+                    </span>
+                    <span>
+                      <span style={{ color: 'var(--fog-dim)' }}>drive </span>
+                      <span className="font-mono" style={{ color: 'var(--fog)' }}>{st.breakdown?.travel_time_minutes}m</span>
+                    </span>
                   </div>
 
                   {!isReachable && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '0.7rem', marginBottom: '8px' }}>
-                      <ShieldAlert size={12} />
-                      <span>Exceeds remaining battery range!</span>
-                    </div>
+                    <p style={{ fontSize: '0.72rem', color: 'var(--signal-red)', marginTop: '6px' }}>
+                      ⚠ Outside battery range
+                    </p>
                   )}
 
                   <a
                     href={st.google_maps_url}
                     target="_blank"
                     rel="noreferrer"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '4px',
-                      width: '100%',
-                      padding: '6px',
-                      borderRadius: '6px',
-                      background: '#06b6d4',
-                      color: '#090d16',
-                      fontWeight: '600',
-                      fontSize: '0.75rem',
-                      textDecoration: 'none',
-                      boxSizing: 'border-box',
-                    }}
+                    className="btn btn-navigate"
+                    style={{ marginTop: '10px', width: '100%', justifyContent: 'center', display: 'flex', gap: '4px' }}
+                    aria-label={`Navigate to ${st.station_name}`}
                   >
-                    <ExternalLink size={12} />
-                    Navigate via Google Maps
+                    Navigate
                   </a>
                 </div>
               </Popup>
@@ -173,42 +191,6 @@ export default function MapView({ userLocation, stations = [], topStationId, onS
           );
         })}
       </MapContainer>
-
-      {/* Map Legend Overlay */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '16px',
-          right: '16px',
-          zIndex: 1000,
-          background: 'rgba(15, 23, 42, 0.88)',
-          backdropFilter: 'blur(8px)',
-          padding: '8px 12px',
-          borderRadius: '8px',
-          border: '1px solid #334155',
-          fontSize: '0.7rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '4px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#06b6d4' }} />
-          <span>Top Pick</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }} />
-          <span>Low Wait (&lt; 5m)</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }} />
-          <span>Moderate (5-15m)</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444' }} />
-          <span>High / Queue (&gt; 15m)</span>
-        </div>
-      </div>
     </div>
   );
 }
