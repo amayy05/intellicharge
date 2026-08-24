@@ -72,14 +72,4 @@ Web dashboard will be live at: [http://localhost:5173](http://localhost:5173)
 
 ---
 
-## 🎓 SJCEM Viva Demo Script (3-Minute Walkthrough)
-1. **Scenario 1 (Form-Based Smart Recommendation)**:
-   - Select **SJCEM Palghar Campus** with **25% battery**.
-   - Show how the top recommendation balances **transit distance** vs **predicted arrival wait time**.
-   - Note the **"Why Recommended"** badge showing time saved over congested alternatives.
-2. **Scenario 2 (Battery Reachability & Congestion Avoidance)**:
-   - Decrease battery to **10%** and observe how stations outside safe range are flagged and filtered.
-3. **Scenario 3 (Conversational AI Agent)**:
-   - Switch to the **AI Reasoning Agent** tab.
-   - Enter: *"I'm at SJCEM Palghar with 20% battery, need CCS2 with low wait"*.
-   - Expand the **Agent Tool Calls** accordion to show the agent executing `parse_intent`, `get_nearby_stations_and_rank`, and `predict_wait_model` in real-time.
+
