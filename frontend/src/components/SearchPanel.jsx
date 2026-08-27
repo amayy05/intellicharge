@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 const PRESET_LOCATIONS = [
   { label: '🎓 SJCEM Palghar Campus', lat: 19.6967, lng: 72.7699, region: 'Palghar' },
@@ -21,6 +21,31 @@ export default function SearchPanel({
   onSearch,
   loading,
 }) {
+  const [geoLoading, setGeoLoading] = useState(false);
+
+  const handleGetGPSLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
+    }
+    setGeoLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGeoLoading(false);
+        setLocation({
+          label: '📍 My Current GPS Location',
+          lat: parseFloat(pos.coords.latitude.toFixed(4)),
+          lng: parseFloat(pos.coords.longitude.toFixed(4)),
+          region: 'Live GPS',
+        });
+      },
+      (err) => {
+        setGeoLoading(false);
+        alert("Unable to fetch location: " + err.message);
+      }
+    );
+  };
+
   const estimatedRangeKm = Math.round((batteryPct / 100) * 320);
 
   const getBatteryStatus = (pct) => {
@@ -194,15 +219,42 @@ export default function SearchPanel({
 
       {/* Destination / Search Params Card */}
       <div className="card">
-        <label style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>
-          Origin Location
-        </label>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <label style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', margin: 0 }}>
+            Origin Location
+          </label>
+          <button
+            type="button"
+            onClick={handleGetGPSLocation}
+            disabled={geoLoading}
+            style={{
+              background: 'rgba(40, 168, 121, 0.1)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--primary-accent)',
+              fontSize: '11px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '4px 8px',
+              borderRadius: '6px',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            {geoLoading ? '📍 Detecting...' : '📍 Use My GPS'}
+          </button>
+        </div>
         <select
           value={`${location.lat},${location.lng}`}
           onChange={(e) => {
             const [latStr, lngStr] = e.target.value.split(',');
             const matched = PRESET_LOCATIONS.find((p) => p.lat === Number(latStr) && p.lng === Number(lngStr));
-            if (matched) setLocation(matched);
+            if (matched) {
+              setLocation(matched);
+            } else if (location.label?.includes('GPS')) {
+              // keep current custom GPS
+            }
           }}
           style={{
             width: '100%',
@@ -217,6 +269,11 @@ export default function SearchPanel({
             marginBottom: '16px'
           }}
         >
+          {location.region === 'Live GPS' && (
+            <option value={`${location.lat},${location.lng}`}>
+              {location.label} ({location.lat}, {location.lng})
+            </option>
+          )}
           {PRESET_LOCATIONS.map((preset, idx) => (
             <option key={idx} value={`${preset.lat},${preset.lng}`}>
               {preset.label}
