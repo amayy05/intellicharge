@@ -31,7 +31,7 @@ def get_nearby_stations(
     results = []
 
     for st in stations:
-        if connector_type and connector_type.strip():
+        if connector_type and connector_type.strip() and connector_type.strip().lower() != "all":
             c_types = [c.strip().lower() for c in st.connector_types.split(",")]
             if connector_type.strip().lower() not in c_types:
                 continue

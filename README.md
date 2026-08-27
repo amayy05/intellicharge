@@ -71,5 +71,3 @@ Web dashboard will be live at: [http://localhost:5173](http://localhost:5173)
 | `POST` | `/agent/query` | Conversational AI agent tool-calling reasoning query |
 
 ---
-
-

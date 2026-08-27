@@ -10,7 +10,7 @@ export async function fetchNearbyStations(lat, lng, radiusKm = 50, connectorType
     lng: lng.toString(),
     radius_km: radiusKm.toString(),
   });
-  if (connectorType) params.append('connector_type', connectorType);
+  if (connectorType && connectorType !== 'All') params.append('connector_type', connectorType);
 
   const res = await fetch(`${API_BASE}/stations/nearby?${params.toString()}`);
   if (!res.ok) throw new Error(`Error fetching nearby stations: ${res.statusText}`);
@@ -24,7 +24,7 @@ export async function fetchRecommendations(lat, lng, batteryPct, radiusKm = 50, 
     battery_pct: batteryPct.toString(),
     radius_km: radiusKm.toString(),
   });
-  if (connectorType) params.append('connector_type', connectorType);
+  if (connectorType && connectorType !== 'All') params.append('connector_type', connectorType);
 
   const res = await fetch(`${API_BASE}/recommend?${params.toString()}`);
   if (!res.ok) throw new Error(`Error fetching recommendations: ${res.statusText}`);
@@ -40,7 +40,7 @@ export async function queryAgent(message, lat, lng, batteryPct, connectorType = 
       lat,
       lng,
       battery_pct: batteryPct,
-      connector_type: connectorType || null,
+      connector_type: connectorType && connectorType !== 'All' ? connectorType : null,
     }),
   });
   if (!res.ok) throw new Error(`Error from AI Agent: ${res.statusText}`);

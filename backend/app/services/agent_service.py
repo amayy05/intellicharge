@@ -64,7 +64,9 @@ def _normalize_connector(raw: Optional[str]) -> Optional[str]:
     """Normalizes connector string to standard catalog value."""
     if not raw:
         return None
-    c_lower = raw.lower()
+    c_lower = raw.lower().strip()
+    if c_lower in ("all", "any"):
+        return None
     if "ccs" in c_lower or "ccs2" in c_lower:
         return "CCS2"
     elif "type 2" in c_lower or "type2" in c_lower:

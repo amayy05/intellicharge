@@ -23,68 +23,173 @@ export default function SearchPanel({
 }) {
   const estimatedRangeKm = Math.round((batteryPct / 100) * 320);
 
-  const getBatteryColor = (pct) => {
-    if (pct > 20) return 'var(--primary-accent)';
-    if (pct > 10) return 'var(--warning)';
-    return 'var(--error)';
+  const getBatteryStatus = (pct) => {
+    if (pct >= 70) {
+      return {
+        label: 'Optimal Condition (High)',
+        color: '#34D399',
+        textColor: '#A7F3D0',
+        gradient: 'linear-gradient(180deg, #34D399 0%, #059669 100%)',
+        border: '#6EE7B7',
+        shadow: 'rgba(52, 211, 153, 0.35)',
+        accent: '#34D399',
+      };
+    }
+    if (pct >= 40) {
+      return {
+        label: 'Good Range (Normal)',
+        color: '#2DD4BF',
+        textColor: '#99F6E4',
+        gradient: 'linear-gradient(180deg, #2DD4BF 0%, #0D9488 100%)',
+        border: '#5EEAD4',
+        shadow: 'rgba(45, 212, 191, 0.35)',
+        accent: '#2DD4BF',
+      };
+    }
+    if (pct >= 20) {
+      return {
+        label: 'Moderate (Recharge Recommended)',
+        color: '#FBBF24',
+        textColor: '#FDE68A',
+        gradient: 'linear-gradient(180deg, #FBBF24 0%, #D97706 100%)',
+        border: '#FCD34D',
+        shadow: 'rgba(251, 191, 36, 0.35)',
+        accent: '#FBBF24',
+      };
+    }
+    return {
+      label: 'Critical Low Battery',
+      color: '#EF4444',
+      textColor: '#FECACA',
+      gradient: 'linear-gradient(180deg, #EF4444 0%, #B91C1C 100%)',
+      border: '#F87171',
+      shadow: 'rgba(239, 68, 68, 0.5)',
+      accent: '#EF4444',
+    };
   };
+
+  const status = getBatteryStatus(batteryPct);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       
-      {/* Battery / Car Overview Card - DARK THEME */}
-      <div className="card" style={{ background: 'var(--bg-dark-card)', color: 'var(--text-light)', border: 'none' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+      {/* Battery / Car Overview Card - DARK THEME WITH DYNAMIC STATE */}
+      <div
+        className="card"
+        style={{
+          background: 'linear-gradient(145deg, #0f241a 0%, #06110c 100%)',
+          color: '#F9FAFB',
+          border: `1px solid ${status.border}44`,
+          boxShadow: `0 12px 32px rgba(0, 0, 0, 0.3), 0 0 20px ${status.shadow}`,
+          transition: 'all 0.4s ease',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
           <div>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-              Battery Health
-            </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-              <h2 style={{ fontSize: '36px', margin: 0, fontWeight: '400' }}>{batteryPct}<span style={{ fontSize: '24px' }}>%</span></h2>
-            </div>
-            <span style={{ fontSize: '11px', color: 'var(--primary-accent)' }}>Working on high quality</span>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-              Remaining
-            </span>
-            <div style={{ marginTop: '4px' }}>
-              <h2 style={{ fontSize: '20px', margin: 0, fontWeight: '500' }}>{estimatedRangeKm} km</h2>
-            </div>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Out of 320km</span>
-          </div>
-        </div>
-        
-        {/* Battery visual bar (Segmented) */}
-        <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', height: '40px', width: '100%' }}>
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div 
-              key={i} 
+            <span
               style={{
-                flex: 1,
-                background: (i * 20) < batteryPct ? getBatteryColor(batteryPct) : 'rgba(255,255,255,0.1)',
-                borderRadius: '6px',
-                display: 'flex',
-                alignItems: 'flex-end',
-                justifyContent: 'center',
-                paddingBottom: '4px'
+                fontSize: '11px',
+                color: '#6EE7B7',
+                fontWeight: '700',
+                textTransform: 'uppercase',
+                letterSpacing: '1.2px',
+                display: 'block',
               }}
             >
-              {(i * 20) < batteryPct && <span style={{ fontSize: '10px', fontWeight: 'bold', color: '#0A1410' }}>{(i+1)*20}%</span>}
+              Battery Health
+            </span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginTop: '4px' }}>
+              <span style={{ fontSize: '38px', fontWeight: '700', color: '#FFFFFF', lineHeight: 1 }}>
+                {batteryPct}
+              </span>
+              <span style={{ fontSize: '22px', fontWeight: '600', color: status.color }}>%</span>
             </div>
-          ))}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+              <span
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  background: status.color,
+                  boxShadow: `0 0 10px ${status.color}`,
+                  transition: 'all 0.3s ease',
+                }}
+              />
+              <span style={{ fontSize: '12px', fontWeight: '600', color: status.textColor, transition: 'color 0.3s ease' }}>
+                {status.label}
+              </span>
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <span
+              style={{
+                fontSize: '11px',
+                color: '#9CA3AF',
+                fontWeight: '600',
+                textTransform: 'uppercase',
+                letterSpacing: '1.2px',
+                display: 'block',
+              }}
+            >
+              Remaining Range
+            </span>
+            <div style={{ marginTop: '4px' }}>
+              <span style={{ fontSize: '24px', fontWeight: '700', color: '#FFFFFF', lineHeight: 1 }}>
+                {estimatedRangeKm} <span style={{ fontSize: '14px', fontWeight: '500', color: status.color }}>km</span>
+              </span>
+            </div>
+            <span style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '4px', display: 'block' }}>
+              Est. Max 320 km
+            </span>
+          </div>
         </div>
-        
-        {/* Hidden input to allow changing battery for demo purposes */}
-        <input
-          type="range"
-          min="5"
-          max="100"
-          step="5"
-          value={batteryPct}
-          onChange={(e) => setBatteryPct(Number(e.target.value))}
-          style={{ width: '100%', opacity: 0.2 }}
-        />
+
+        {/* Battery visual bar (Segmented) */}
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', height: '36px', width: '100%' }}>
+          {Array.from({ length: 5 }).map((_, i) => {
+            const isFilled = (i * 20) < batteryPct;
+            return (
+              <div
+                key={i}
+                style={{
+                  flex: 1,
+                  background: isFilled
+                    ? status.gradient
+                    : 'rgba(255, 255, 255, 0.08)',
+                  border: isFilled
+                    ? `1px solid ${status.border}`
+                    : '1px solid rgba(255, 255, 255, 0.05)',
+                  borderRadius: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: isFilled ? `0 0 12px ${status.shadow}` : 'none',
+                  transition: 'all 0.3s ease',
+                }}
+              >
+                {isFilled && (
+                  <span style={{ fontSize: '11px', fontWeight: '800', color: '#06281b' }}>
+                    {(i + 1) * 20}%
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Interactive slider to adjust battery */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+          <span style={{ fontSize: '10px', color: '#6EE7B7', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Adjust SoC:</span>
+          <input
+            type="range"
+            min="5"
+            max="100"
+            step="5"
+            value={batteryPct}
+            onChange={(e) => setBatteryPct(Number(e.target.value))}
+            style={{ flex: 1, accentColor: status.color, cursor: 'pointer', height: '4px' }}
+          />
+        </div>
       </div>
 
       {/* Destination / Search Params Card */}
