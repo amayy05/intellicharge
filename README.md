@@ -1,6 +1,6 @@
 # IntelliCharge ⚡
 > **An AI-Powered Smart EV Charging Network with Predictive Queue Estimation & Intelligent Routing**  
-> *Dept. of Computer Engineering, SJCEM Palghar | v0.1 (Build-Scoped MVP)*
+
 
 ---
 
