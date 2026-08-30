@@ -49,9 +49,11 @@ def estimate_travel_time_minutes(road_distance_km: float, avg_speed_kmh: float =
 def build_google_maps_navigate_url(dest_lat: float, dest_lng: float, origin_lat: float = None, origin_lng: float = None) -> str:
     """
     Builds an external Google Maps turn-by-turn navigation deep-link.
-    Specifying the destination with driving mode allows Google Maps to automatically route
-    from the driver's current device location (or user's selected starting point) without 
-    causing origin-destination collision issues.
+    If origin coordinates are provided (e.g. driver's GPS or selected origin),
+    they are explicitly passed to prevent desktop browsers from routing from distant ISP IP locations.
     """
+    if origin_lat is not None and origin_lng is not None:
+        return f"https://www.google.com/maps/dir/?api=1&origin={origin_lat},{origin_lng}&destination={dest_lat},{dest_lng}&travelmode=driving"
     return f"https://www.google.com/maps/dir/?api=1&destination={dest_lat},{dest_lng}&travelmode=driving"
+
 

@@ -110,3 +110,40 @@ def test_ai_agent_query():
         )
     finally:
         db.close()
+
+
+def test_ai_agent_respects_gps_location_and_near_me():
+    """
+    Verifies that when the user is at custom GPS coordinates (e.g. Boisar: 19.8137, 72.7356)
+    and says 'near me', the agent does not override with Mumbai/BKC and recommends
+    the Statiq Boisar MIDC charger (~2.9 km away).
+    """
+    db = SessionLocal()
+    try:
+        intent = parse_query_intent(
+            query="20% battery , find the best type 2 charge near me",
+            default_lat=19.8137,
+            default_lng=72.7356,
+            default_battery=20.0,
+            default_connector=None,
+        )
+        assert intent["lat"] == pytest.approx(19.8137, abs=1e-3)
+        assert intent["lng"] == pytest.approx(72.7356, abs=1e-3)
+        assert intent["battery_pct"] == 20.0
+        assert intent["connector_type"] == "Type 2"
+
+        res = execute_agent_query(
+            db=db,
+            message="20% battery , find the best type 2 charge near me",
+            lat=19.8137,
+            lng=72.7356,
+            battery_pct=20.0,
+            connector_type=None,
+        )
+        assert res.status == "success"
+        assert res.recommended_station is not None
+        assert "Boisar" in res.recommended_station.station_name or "Statiq" in res.recommended_station.station_name
+        assert res.recommended_station.breakdown.road_distance_km < 10.0
+    finally:
+        db.close()
+

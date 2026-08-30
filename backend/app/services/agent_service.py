@@ -51,11 +51,28 @@ LANDMARK_COORDINATES = {
 }
 
 
+GENERIC_LOCATION_TERMS = {
+    "near me",
+    "around me",
+    "here",
+    "my location",
+    "current location",
+    "nearby",
+    "closest",
+    "near",
+    "location",
+    "close to me",
+    "where i am",
+    "me",
+}
+
+
 def _match_landmark_coords(text: str) -> Optional[Tuple[Tuple[float, float], str]]:
     """Helper to match text against known landmark presets."""
     t_lower = text.lower()
     for landmark, coords in LANDMARK_COORDINATES.items():
-        if landmark in t_lower:
+        # Match as word or phrase to avoid false substrings
+        if re.search(rf"\b{re.escape(landmark)}\b", t_lower):
             return coords, landmark.title()
     return None
 
@@ -69,11 +86,11 @@ def _normalize_connector(raw: Optional[str]) -> Optional[str]:
         return None
     if "ccs" in c_lower or "ccs2" in c_lower:
         return "CCS2"
-    elif "type 2" in c_lower or "type2" in c_lower:
+    elif "type 2" in c_lower or "type2" in c_lower or "type-2" in c_lower:
         return "Type 2"
     elif "chademo" in c_lower:
         return "CHAdeMO"
-    elif "bharat" in c_lower or "gb/t" in c_lower:
+    elif "bharat" in c_lower or "gb/t" in c_lower or "dc-001" in c_lower or "dc001" in c_lower:
         return "Bharat DC-001"
     return None
 
@@ -88,10 +105,10 @@ def ollama_extract_intent(query: str) -> Optional[Dict[str, Any]]:
     Returns dict if successful, None on error/timeout.
     """
     system_prompt = (
-        "You are an intent parser for an EV charging network assistant in Mumbai/Palghar, Maharashtra, India. "
+        "You are an intent parser for an EV charging assistant in Maharashtra, India. "
         "Extract the driver's intent from their query into a JSON object with EXACTLY these keys:\n"
         '- "battery_pct": integer or float (percentage between 1 and 100, or null if not mentioned)\n'
-        '- "location_name": string (city, area, landmark, or campus name mentioned, or null if not mentioned)\n'
+        '- "location_name": string (ONLY if the user explicitly names a specific city, area, landmark, or campus like "Palghar", "Thane", "BKC", "Manor", "Boisar", "Andheri", "Virar". If the user says "near me", "here", "around me", "my location", or does NOT mention an explicit named place, return null)\n'
         '- "connector_type": string ("CCS2", "Type 2", "CHAdeMO", "Bharat DC-001", or null if not mentioned)\n\n'
         "Output strictly valid JSON with no markdown formatting, no code blocks, and no extra explanation."
     )
@@ -128,6 +145,7 @@ def parse_query_intent(
     """
     Extracts battery %, location, and connector type from user input.
     Uses Ollama llama3.2 extraction first, with full regex fallback.
+    Respects driver's GPS coordinates unless an explicit named landmark is in the query.
     """
     ollama_res = ollama_extract_intent(query)
     parsed_by = "ollama (llama3.2)" if ollama_res else "regex fallback"
@@ -137,6 +155,8 @@ def parse_query_intent(
     target_lat = default_lat
     target_lng = default_lng
     matched_loc = None
+
+    q_lower = query.lower()
 
     if ollama_res:
         # Extract battery %
@@ -152,16 +172,17 @@ def parse_query_intent(
         if raw_conn:
             target_connector = _normalize_connector(str(raw_conn))
 
-        # Extract location
-        loc_str = ollama_res.get("location_name")
-        if loc_str:
-            coords_match = _match_landmark_coords(str(loc_str))
+        # Extract location ONLY if explicitly provided and actually present in user's query
+        loc_str = str(ollama_res.get("location_name") or "").strip().lower()
+        if loc_str and loc_str not in GENERIC_LOCATION_TERMS and loc_str != "null" and loc_str != "none":
+            coords_match = _match_landmark_coords(loc_str)
             if coords_match:
-                (target_lat, target_lng), matched_loc = coords_match
+                matched_landmark_name = coords_match[1].lower()
+                # Verify that the matched landmark is actually mentioned in the user's raw query
+                if matched_landmark_name in q_lower or loc_str in q_lower:
+                    (target_lat, target_lng), matched_loc = coords_match
 
-    # Fallback to regex & rule-based parser if Ollama didn't find specific fields
-    q_lower = query.lower()
-
+    # Fallback to regex & rule-based parser if not extracted
     if target_battery is None:
         battery_match = re.search(r"(\d{1,3})\s*%", q_lower)
         if not battery_match:
@@ -176,20 +197,25 @@ def parse_query_intent(
     if target_connector is None:
         target_connector = _normalize_connector(q_lower) or default_connector
 
-    if target_lat is None or target_lng is None:
+    # Check if query explicitly contains a landmark directly in the text
+    if matched_loc is None:
         coords_match = _match_landmark_coords(q_lower)
         if coords_match:
             (target_lat, target_lng), matched_loc = coords_match
-        else:
-            target_lat, target_lng = 19.6967, 72.7699
-            matched_loc = "SJCEM Palghar (Default)"
+
+    # If coordinates are missing (no default_lat/lng provided and no landmark), fallback to Palghar default
+    if target_lat is None or target_lng is None:
+        target_lat, target_lng = 19.6967, 72.7699
+        matched_loc = "SJCEM Palghar (Default)"
+    elif matched_loc is None:
+        matched_loc = f"Current GPS Location ({target_lat:.4f}, {target_lng:.4f})"
 
     return {
         "lat": target_lat,
         "lng": target_lng,
         "battery_pct": target_battery,
         "connector_type": target_connector,
-        "location_label": matched_loc or "Detected Location",
+        "location_label": matched_loc,
         "parsed_by": parsed_by,
     }
 
@@ -208,7 +234,7 @@ def _build_template_response(
     reasoning_lines = []
 
     reasoning_lines.append(
-        f"⚡ **Recommended Station:** **{top_st.station_name}** ({top_st.operator})"
+        f"⚡ **Recommended Station:** **{top_st.station_name}** ({top_st.operator}) in {top_st.city_region}"
     )
     reasoning_lines.append(
         f"• **Distance & Transit:** ~{top_st.breakdown.road_distance_km} km away (~{top_st.breakdown.travel_time_minutes} mins driving time via road)."
@@ -256,7 +282,7 @@ def ollama_generate_response(
     """
     alt_summary = "\n".join(
         [
-            f"- {alt.station_name} ({alt.operator}): {alt.breakdown.road_distance_km} km away, {alt.breakdown.predicted_wait_minutes} min predicted wait, {alt.power_kw} kW"
+            f"- {alt.station_name} ({alt.operator}) in {alt.city_region}: {alt.breakdown.road_distance_km} km away, {alt.breakdown.predicted_wait_minutes} min predicted wait, {alt.power_kw} kW"
             for alt in alternatives[:3]
         ]
     ) or "None in direct range"
@@ -268,11 +294,12 @@ def ollama_generate_response(
     )
 
     system_prompt = (
-        "You are IntelliCharge, an AI assistant for EV drivers in Mumbai and Maharashtra. "
+        "You are IntelliCharge, an AI assistant for EV drivers in Maharashtra, India. "
         "You have just executed real-time queue prediction models and optimal routing calculations. "
         "Provide a clear, natural, and conversational recommendation in 3 to 4 concise sentences.\n\n"
         "FACTS FROM ML PIPELINE:\n"
-        f"- Top Recommendation: {top_st.station_name} ({top_st.operator})\n"
+        f"- Top Recommendation (Primary Choice): {top_st.station_name} ({top_st.operator})\n"
+        f"- Station Area: {top_st.city_region}\n"
         f"- Predicted Arrival Queue Wait: {top_st.breakdown.predicted_wait_minutes} minutes\n"
         f"- Road Distance: {top_st.breakdown.road_distance_km} km (Drive time: {top_st.breakdown.travel_time_minutes} mins)\n"
         f"- Battery on Arrival: ~{top_st.breakdown.battery_after_arrival_pct}% (Starting battery: {target_battery}%, est. range {estimated_range_km} km)\n"
@@ -280,10 +307,10 @@ def ollama_generate_response(
         f"- Why Chosen: {why_chosen}\n"
         f"- Alternative stations considered:\n{alt_summary}\n\n"
         "GUIDELINES:\n"
-        "1. State the top recommendation first, followed by predicted wait and drive time.\n"
-        "2. Explain why it was selected (low congestion, time saved, or safe battery arrival).\n"
+        f"1. You MUST recommend ONLY the Top Recommendation ({top_st.station_name}) as your primary choice. State its exact name, area ({top_st.city_region}), predicted wait, and road distance.\n"
+        "2. Explain why it was selected (low congestion, time saved vs congested stations, or safe battery arrival).\n"
         "3. Keep tone direct, professional, and reassuring for an EV driver on the road.\n"
-        "4. STRICT CONSTRAINT: Do NOT hallucinate or alter any numbers, names, or values. Use only the exact facts above."
+        "4. STRICT CONSTRAINT: Do NOT hallucinate or alter any numbers, names, locations, or values. Do NOT recommend an alternative over the Top Recommendation."
     )
 
     user_message = f"Driver query: \"{query}\""
