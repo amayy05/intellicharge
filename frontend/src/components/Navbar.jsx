@@ -17,7 +17,10 @@ export default function Navbar({ activeTab, setActiveTab }) {
       }}
     >
       {/* Brand / Logo Area */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div 
+        onClick={() => setActiveTab('home')}
+        style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+      >
         <div
           style={{
             width: '36px',
@@ -64,6 +67,22 @@ export default function Navbar({ activeTab, setActiveTab }) {
           boxShadow: 'var(--shadow-subtle)',
         }}
       >
+        <button
+          onClick={() => setActiveTab('home')}
+          style={{
+            padding: '8px 18px',
+            borderRadius: 'var(--radius-pill)',
+            border: 'none',
+            fontSize: '13px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            background: activeTab === 'home' ? 'var(--bg-dark-card)' : 'transparent',
+            color: activeTab === 'home' ? 'var(--text-light)' : 'var(--text-secondary)',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          Home
+        </button>
         <button
           onClick={() => setActiveTab('recommend')}
           style={{
