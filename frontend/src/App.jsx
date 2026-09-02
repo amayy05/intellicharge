@@ -4,6 +4,7 @@ import SearchPanel from './components/SearchPanel';
 import MapView from './components/MapView';
 import StationList from './components/StationList';
 import AgentChat from './components/AgentChat';
+import EVProfileModal from './components/EVProfileModal';
 import { fetchRecommendations } from './services/api';
 
 export default function App() {
@@ -15,11 +16,13 @@ export default function App() {
     region: 'Palghar',
   });
   const [batteryPct, setBatteryPct] = useState(42);
+  const [targetSoc, setTargetSoc] = useState(80);
   const [connectorType, setConnectorType] = useState('All');
   const [radiusKm, setRadiusKm] = useState(50);
   const [recommendationData, setRecommendationData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [userVehicle, setUserVehicle] = useState(null);
 
   const loadRecommendations = async () => {
     setLoading(true);
@@ -49,6 +52,9 @@ export default function App() {
 
   return (
     <div className="app-container" style={{ padding: '20px', maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {!userVehicle && (
+        <EVProfileModal onProfileSaved={(vehicle) => setUserVehicle(vehicle)} />
+      )}
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
 
       <main style={{ display: 'flex', gap: '24px', flex: 1, minHeight: '800px', flexDirection: 'row', flexWrap: 'wrap' }}>
@@ -60,6 +66,8 @@ export default function App() {
             setLocation={setLocation}
             batteryPct={batteryPct}
             setBatteryPct={setBatteryPct}
+            targetSoc={targetSoc}
+            setTargetSoc={setTargetSoc}
             connectorType={connectorType}
             setConnectorType={setConnectorType}
             radiusKm={radiusKm}
@@ -96,6 +104,9 @@ export default function App() {
                       recommendationData={recommendationData}
                       loading={loading}
                       onSelectStation={(st) => console.log('Selected card:', st)}
+                      userVehicle={userVehicle}
+                      currentSoc={batteryPct}
+                      targetSoc={targetSoc}
                     />
                   </div>
                 </div>

@@ -251,7 +251,7 @@ export default function AgentChat({ currentLat, currentLng, currentBattery, curr
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <strong style={{ color: '#FFFFFF', fontSize: '15px' }}>{msg.card.station_name}</strong>
                     <span style={{ color: 'var(--primary-accent)', fontSize: '13px', fontWeight: '700' }}>
-                      {msg.card.breakdown.predicted_wait_minutes}m wait
+                      {msg.card.breakdown.predicted_wait_minutes < 1 ? '<1' : '~' + Math.round(msg.card.breakdown.predicted_wait_minutes)}m wait
                     </span>
                   </div>
                   <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>

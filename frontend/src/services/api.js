@@ -55,3 +55,27 @@ export async function fetchStationPrediction(stationId, arrivalTs = null) {
   if (!res.ok) throw new Error(`Error fetching prediction: ${res.statusText}`);
   return res.json();
 }
+
+export async function saveEVProfile(vehicleData) {
+  const res = await fetch(`${API_BASE}/api/vehicles/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(vehicleData),
+  });
+  if (!res.ok) throw new Error(`Error saving EV profile: ${res.statusText}`);
+  return res.json();
+}
+
+export async function joinQueue(stationId, vehicleId, currentSoc, targetSoc) {
+  const res = await fetch(`${API_BASE}/api/stations/${stationId}/queue/join`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      vehicle_id: vehicleId,
+      current_soc: currentSoc,
+      target_soc: targetSoc
+    }),
+  });
+  if (!res.ok) throw new Error(`Error joining queue: ${res.statusText}`);
+  return res.json();
+}

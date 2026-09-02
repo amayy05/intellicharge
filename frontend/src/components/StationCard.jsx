@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { joinQueue } from '../services/api';
 
-export default function StationCard({ station, onSelect }) {
+export default function StationCard({ station, onSelect, userVehicle, currentSoc, targetSoc }) {
   const { breakdown } = station;
+  const [joining, setJoining] = useState(false);
+  const [joined, setJoined] = useState(false);
 
   return (
     <div
@@ -32,7 +35,7 @@ export default function StationCard({ station, onSelect }) {
           fontSize: '12px',
           fontWeight: '500'
         }}>
-          ~{breakdown.predicted_wait_minutes} min wait
+          {breakdown.predicted_wait_minutes < 1 ? '<1' : '~' + Math.round(breakdown.predicted_wait_minutes)} min wait
         </span>
         <span style={{ 
           background: 'rgba(40, 168, 121, 0.1)', 
@@ -53,16 +56,43 @@ export default function StationCard({ station, onSelect }) {
         • {station.charger_count} chargers ({station.power_kw} kW)
       </div>
 
-      <a
-        href={station.google_maps_url}
-        target="_blank"
-        rel="noreferrer"
-        className="btn-secondary"
-        style={{ width: '100%', marginTop: '4px', textDecoration: 'none', padding: '10px' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        View Station
-      </a>
+      <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+        <a
+          href={station.google_maps_url}
+          target="_blank"
+          rel="noreferrer"
+          className="btn-secondary"
+          style={{ flex: 1, textDecoration: 'none', padding: '10px', textAlign: 'center' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          View Map
+        </a>
+        <button
+          className="btn-primary"
+          style={{ flex: 1, padding: '10px' }}
+          disabled={joining || joined || !userVehicle}
+          onClick={async (e) => {
+            e.stopPropagation();
+            if (!userVehicle) {
+              alert("Please configure your EV profile first");
+              return;
+            }
+            setJoining(true);
+            try {
+              const res = await joinQueue(station.station_id, userVehicle.id, currentSoc, targetSoc);
+              setJoined(true);
+              alert(`Success! You have joined the virtual queue.\nEstimated Start Time: ${new Date(res.estimated_start_time).toLocaleTimeString()}\nEstimated Wait: ${res.estimated_wait_minutes} mins`);
+            } catch (err) {
+              console.error(err);
+              alert('Failed to join queue');
+            } finally {
+              setJoining(false);
+            }
+          }}
+        >
+          {joined ? 'Queue Joined ✅' : joining ? 'Joining...' : 'Join Queue'}
+        </button>
+      </div>
     </div>
   );
 }

@@ -22,6 +22,8 @@ from app.schemas.recommend import (
     StationScoreBreakdown,
     RecommendationResponse,
 )
+from app.services.queue_engine import estimate_queue_wait_time
+from app.services.charging_math import calculate_charging_duration_minutes
 
 
 def compute_station_recommendations(
@@ -72,7 +74,17 @@ def compute_station_recommendations(
             arrival_time=arrival_ts,
             charger_count=st.charger_count,
         )
-        predicted_wait = pred_res["predicted_wait_minutes"]
+        ml_predicted_wait = pred_res["predicted_wait_minutes"]
+        
+        # Current Queue prediction
+        # Assume a standard 20% to 80% charge for the queue estimate if not provided (defaulting to 35 mins)
+        est_duration = 35.0 
+        queue_predicted_wait, _ = estimate_queue_wait_time(db, st.id, est_duration)
+        
+        # Hybrid prediction (alpha = 0.7 for real-time queue, 0.3 for ML forecast)
+        alpha = 0.7
+        predicted_wait = round((alpha * queue_predicted_wait) + ((1 - alpha) * ml_predicted_wait), 1)
+        
         total_time = round(travel_time_min + predicted_wait, 1)
 
         # Multi-factor composite score calculation (lower is better)

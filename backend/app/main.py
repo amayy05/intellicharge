@@ -9,6 +9,9 @@ from app.core.database import Base, engine
 from app.api.stations import router as stations_router
 from app.api.recommend import router as recommend_router
 from app.api.agent import router as agent_router
+from app.api.vehicles import router as vehicles_router
+from app.api.queue import router as queue_router
+from app.api.sessions import router as sessions_router
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -32,11 +35,17 @@ app.add_middleware(
 app.include_router(stations_router, prefix=settings.API_V1_STR)
 app.include_router(recommend_router, prefix=settings.API_V1_STR)
 app.include_router(agent_router, prefix=settings.API_V1_STR)
+app.include_router(vehicles_router, prefix=settings.API_V1_STR)
+app.include_router(queue_router, prefix=settings.API_V1_STR)
+app.include_router(sessions_router, prefix=settings.API_V1_STR)
 
 # Also expose at top-level for direct compatibility with PRD specification
 app.include_router(stations_router)
 app.include_router(recommend_router)
 app.include_router(agent_router)
+app.include_router(vehicles_router)
+app.include_router(queue_router)
+app.include_router(sessions_router)
 
 
 @app.get("/", tags=["Health"])

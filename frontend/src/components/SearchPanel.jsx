@@ -14,6 +14,8 @@ export default function SearchPanel({
   setLocation,
   batteryPct,
   setBatteryPct,
+  targetSoc,
+  setTargetSoc,
   connectorType,
   setConnectorType,
   radiusKm,
@@ -214,7 +216,21 @@ export default function SearchPanel({
             onChange={(e) => setBatteryPct(Number(e.target.value))}
             style={{ flex: 1, accentColor: status.color, cursor: 'pointer', height: '4px' }}
           />
+        {/* Interactive slider to adjust target battery */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px' }}>
+          <span style={{ fontSize: '10px', color: '#6EE7B7', textTransform: 'uppercase', letterSpacing: '0.8px', width: '80px' }}>Target SoC:</span>
+          <input
+            type="range"
+            min={batteryPct + 5}
+            max="100"
+            step="5"
+            value={targetSoc}
+            onChange={(e) => setTargetSoc(Number(e.target.value))}
+            style={{ flex: 1, accentColor: '#34D399', cursor: 'pointer', height: '4px' }}
+          />
+          <span style={{ fontSize: '12px', fontWeight: 'bold', width: '30px', textAlign: 'right' }}>{targetSoc}%</span>
         </div>
+      </div>
       </div>
 
       {/* Destination / Search Params Card */}

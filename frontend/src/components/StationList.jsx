@@ -5,6 +5,9 @@ export default function StationList({
   recommendationData,
   loading,
   onSelectStation,
+  userVehicle,
+  currentSoc,
+  targetSoc,
 }) {
   if (loading) {
     return (
@@ -81,7 +84,7 @@ export default function StationList({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px', fontSize: '15px', fontWeight: '500' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ color: 'var(--warning)' }}>⚡</span>
-              <span>~{bestStation.breakdown.predicted_wait_minutes} min predicted wait</span>
+              <span>{bestStation.breakdown.predicted_wait_minutes < 1 ? '<1' : '~' + Math.round(bestStation.breakdown.predicted_wait_minutes)} min predicted wait</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ color: 'var(--primary-accent)' }}>📍</span>
@@ -118,12 +121,15 @@ export default function StationList({
       {alternatives.length > 0 && (
         <div>
           <h3 style={{ fontSize: '18px', marginBottom: '16px' }}>Other good options</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {alternatives.map((station) => (
               <StationCard
                 key={station.station_id}
                 station={station}
                 onSelect={() => onSelectStation && onSelectStation(station)}
+                userVehicle={userVehicle}
+                currentSoc={currentSoc}
+                targetSoc={targetSoc}
               />
             ))}
           </div>

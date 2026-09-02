@@ -123,7 +123,7 @@ export default function MapView({ userLocation, stations = [], topStationId, onS
                   
                   <div style={{ fontSize: '12px', marginBottom: '8px', color: 'var(--text-secondary)' }}>
                     <span>{st.breakdown.road_distance_km} km away</span><br/>
-                    <span>~{st.breakdown.predicted_wait_minutes} min wait</span>
+                    <span>{st.breakdown.predicted_wait_minutes < 1 ? '<1' : '~' + Math.round(st.breakdown.predicted_wait_minutes)} min wait</span>
                   </div>
 
                   <a
