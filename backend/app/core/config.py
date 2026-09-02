@@ -5,6 +5,9 @@ Application configuration for IntelliCharge backend.
 import os
 from pathlib import Path
 from pydantic import BaseModel
+from dotenv import load_dotenv
+
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
@@ -33,6 +36,14 @@ class Settings(BaseModel):
     LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "openai")  # openai / anthropic / gemini / mock
     LLM_API_KEY: str = os.getenv("LLM_API_KEY", "")
     LLM_MODEL: str = os.getenv("LLM_MODEL", "gpt-4o-mini")
+
+    # JWT Authentication Settings
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "intellicharge-secret-key-super-secure-token-2025")
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+
+    # Google Maps API Settings
+    GOOGLE_MAPS_API_KEY: str = os.getenv("GOOGLE_MAPS_API_KEY", "")
 
 
 settings = Settings()

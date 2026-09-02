@@ -15,6 +15,7 @@ from app.ml.predictor import get_wait_time_predictor
 from app.services.distance import (
     estimate_road_distance_km,
     estimate_travel_time_minutes,
+    get_road_distance_and_time,
     build_google_maps_navigate_url,
 )
 from app.schemas.recommend import (
@@ -54,11 +55,12 @@ def compute_station_recommendations(
                 continue
 
         # Compute distance & transit time
-        straight_dist, road_dist = estimate_road_distance_km(user_lat, user_lng, st.latitude, st.longitude)
+        straight_dist, road_dist, travel_time_min = get_road_distance_and_time(
+            user_lat, user_lng, st.latitude, st.longitude
+        )
         if straight_dist > radius_km:
             continue
 
-        travel_time_min = estimate_travel_time_minutes(road_dist)
         is_reachable = road_dist <= remaining_range_km
 
         # Battery consumed during transit

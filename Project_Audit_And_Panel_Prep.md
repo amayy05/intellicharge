@@ -36,8 +36,8 @@ Based on the inspection of the `backend` and `frontend` directories, here is the
 
 ### Top 10 Priority Next Steps
 
-1.  **Replace Mock Distance:** Integrate the actual Google Maps Distance Matrix API in `distance.py` instead of using the math-based Haversine formula.
-2.  **Add User Authentication:** Implement JWT-based login so users can save favorite stations and track their vehicle profiles.
+1.  **Replace Mock Distance:** [COMPLETED] Integrated the actual Google Maps Distance Matrix API in `distance.py` with batch querying, in-memory caching, and seamless Haversine fallback.
+2.  **Add User Authentication:** [COMPLETED] Implemented JWT-based authentication (register, login, session persistence, EV profile sync, and UI modal).
 3.  **Migrate Database:** Upgrade from local SQLite to PostgreSQL to handle concurrent database reads/writes for scalability.
 4.  **Implement Real RAG:** Add a Vector Database (like ChromaDB) and an embedding model to actually retrieve EV user manuals and FAQs, validating the RAG claim.
 5.  **Dockerize the App:** Create `Dockerfile` and `docker-compose.yml` for both backend and frontend to standardize deployment.

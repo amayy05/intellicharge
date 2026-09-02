@@ -16,6 +16,8 @@ sys.path.insert(0, str(BASE_DIR))  # Needed for data.generator import
 from app.core.database import SessionLocal, engine, Base
 from app.models.station import Station
 from app.models.queue import QueueSnapshot
+from app.models.user import User
+from app.core.security import get_password_hash
 from app.ml.train import train_wait_time_model
 
 # Import queue generator from data directory
@@ -80,6 +82,18 @@ def seed_database():
 
     db.commit()
     print(f"Successfully seeded/updated {len(stations_data)} charging stations.")
+
+    # Seed default demo user for testing & grading
+    demo_user = db.query(User).filter(User.email == "demo@intellicharge.ai").first()
+    if not demo_user:
+        demo_user = User(
+            email="demo@intellicharge.ai",
+            hashed_password=get_password_hash("password123"),
+            name="Demo Driver",
+        )
+        db.add(demo_user)
+        db.commit()
+        print("Seeded default demo user (demo@intellicharge.ai / password123)")
 
     # Generate synthetic queue history if missing
     if not queue_history_path.exists():

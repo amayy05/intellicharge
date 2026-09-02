@@ -5,9 +5,12 @@ import MapView from './components/MapView';
 import StationList from './components/StationList';
 import AgentChat from './components/AgentChat';
 import EVProfileModal from './components/EVProfileModal';
-import { fetchRecommendations } from './services/api';
+import AuthModal from './components/AuthModal';
+import { useAuth } from './context/AuthContext';
+import { fetchRecommendations, fetchUserVehicles } from './services/api';
 
 export default function App() {
+  const { user, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState('recommend'); // 'recommend' | 'agent'
   const [location, setLocation] = useState({
     label: '🎓 SJCEM Palghar Campus',
@@ -23,6 +26,21 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [userVehicle, setUserVehicle] = useState(null);
+
+  // Sync vehicle profile if user has one saved on backend
+  useEffect(() => {
+    async function loadUserVehicle() {
+      try {
+        const vehicles = await fetchUserVehicles();
+        if (vehicles && vehicles.length > 0) {
+          setUserVehicle(vehicles[vehicles.length - 1]);
+        }
+      } catch (err) {
+        console.warn('Could not fetch user vehicles:', err);
+      }
+    }
+    loadUserVehicle();
+  }, [user, isAuthenticated]);
 
   const loadRecommendations = async () => {
     setLoading(true);
@@ -52,6 +70,8 @@ export default function App() {
 
   return (
     <div className="app-container" style={{ padding: '20px', maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <AuthModal />
+      
       {!userVehicle && (
         <EVProfileModal onProfileSaved={(vehicle) => setUserVehicle(vehicle)} />
       )}

@@ -12,9 +12,19 @@ from app.api.agent import router as agent_router
 from app.api.vehicles import router as vehicles_router
 from app.api.queue import router as queue_router
 from app.api.sessions import router as sessions_router
+from app.api.auth import router as auth_router
+from sqlalchemy import text
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
+
+# Auto-migrate optional columns if existing SQLite DB was created previously
+with engine.connect() as conn:
+    try:
+        conn.execute(text("ALTER TABLE users ADD COLUMN name VARCHAR"))
+        conn.commit()
+    except Exception:
+        pass
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -32,6 +42,7 @@ app.add_middleware(
 )
 
 # Include API Routers
+app.include_router(auth_router, prefix=settings.API_V1_STR)
 app.include_router(stations_router, prefix=settings.API_V1_STR)
 app.include_router(recommend_router, prefix=settings.API_V1_STR)
 app.include_router(agent_router, prefix=settings.API_V1_STR)
@@ -40,6 +51,7 @@ app.include_router(queue_router, prefix=settings.API_V1_STR)
 app.include_router(sessions_router, prefix=settings.API_V1_STR)
 
 # Also expose at top-level for direct compatibility with PRD specification
+app.include_router(auth_router)
 app.include_router(stations_router)
 app.include_router(recommend_router)
 app.include_router(agent_router)
