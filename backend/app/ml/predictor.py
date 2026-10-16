@@ -12,7 +12,7 @@ MODEL_PATH = BASE_DIR / "data" / "models" / "wait_time_model.joblib"
 PIPELINE_PATH = BASE_DIR / "data" / "models" / "feature_pipeline.joblib"
 
 try:
-    import joblib
+    import joblib # type: ignore
     HAS_JOBLIB = True
 except ImportError:
     HAS_JOBLIB = False
@@ -42,6 +42,7 @@ class WaitTimePredictor:
         station_id: str,
         arrival_time: Optional[datetime] = None,
         charger_count: int = 4,
+        station_name: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Predicts queue wait time in minutes for given station and arrival timestamp.
@@ -98,6 +99,7 @@ class WaitTimePredictor:
 
         return {
             "station_id": station_id,
+            "station_name": station_name,
             "arrival_time": arrival_time.isoformat(),
             "predicted_wait_minutes": predicted_wait,
             "congestion_level": congestion_level,

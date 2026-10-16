@@ -184,22 +184,25 @@ def batch_calculate_distances_and_times(
     for idx, (dest_lat, dest_lng) in enumerate(destinations):
         straight_dist = haversine_distance_km(origin[0], origin[1], dest_lat, dest_lng)
 
-        if gmaps_results and gmaps_results[idx] is not None:
-            output.append({
-                "straight_distance_km": round(straight_dist, 2),
-                "road_distance_km": gmaps_results[idx]["road_distance_km"],
-                "travel_time_minutes": gmaps_results[idx]["travel_time_minutes"],
-                "source": "google_maps",
-            })
-        else:
-            road_dist = straight_dist * settings.ROAD_WINDING_FACTOR
-            travel_time = estimate_travel_time_minutes(road_dist)
-            output.append({
-                "straight_distance_km": round(straight_dist, 2),
-                "road_distance_km": round(road_dist, 2),
-                "travel_time_minutes": travel_time,
-                "source": "haversine_estimate",
-            })
+        if gmaps_results:
+            res = gmaps_results[idx]
+            if res is not None:
+                output.append({
+                    "straight_distance_km": round(straight_dist, 2),
+                    "road_distance_km": res["road_distance_km"],
+                    "travel_time_minutes": res["travel_time_minutes"],
+                })
+                output[-1]["source"] = "google_maps"  # type: ignore
+                continue
+
+        road_dist = straight_dist * settings.ROAD_WINDING_FACTOR
+        travel_time = estimate_travel_time_minutes(road_dist)
+        output.append({
+            "straight_distance_km": round(straight_dist, 2),
+            "road_distance_km": round(road_dist, 2),
+            "travel_time_minutes": travel_time,
+        })
+        output[-1]["source"] = "haversine_estimate"  # type: ignore
 
     return output
 
@@ -213,7 +216,7 @@ def estimate_road_distance_km(lat1: float, lon1: float, lat2: float, lon2: float
     return straight_dist, road_dist
 
 
-def estimate_travel_time_minutes(road_distance_km: float, avg_speed_kmh: float = None) -> float:
+def estimate_travel_time_minutes(road_distance_km: float, avg_speed_kmh: Optional[float] = None) -> float:
     """
     Estimates transit driving time in minutes based on expected urban/highway speeds.
     """
@@ -223,7 +226,7 @@ def estimate_travel_time_minutes(road_distance_km: float, avg_speed_kmh: float =
 
 
 def build_google_maps_navigate_url(
-    dest_lat: float, dest_lng: float, origin_lat: float = None, origin_lng: float = None
+    dest_lat: float, dest_lng: float, origin_lat: Optional[float] = None, origin_lng: Optional[float] = None
 ) -> str:
     """
     Builds an external Google Maps turn-by-turn navigation deep-link.

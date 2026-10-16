@@ -386,7 +386,7 @@ def execute_agent_query(
         )
     )
 
-    if not recommendation_res.ranked_stations:
+    if not recommendation_res.ranked_stations or recommendation_res.top_recommendation is None:
         return AgentQueryResponse(
             status="no_match",
             query=message,

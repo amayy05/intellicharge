@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.core.database import get_db
 from app.models.queue_entry import QueueEntry
@@ -43,7 +43,7 @@ def join_queue(station_id: str, request: QueueJoinRequest, db: Session = Depends
         vehicle_id=vehicle.id,
         estimated_duration_minutes=duration,
         estimated_start_at=start_time,
-        estimated_end_at=start_time + __import__('datetime').timedelta(minutes=duration)
+        estimated_end_at=start_time + timedelta(minutes=duration)
     )
     db.add(entry)
     db.commit()

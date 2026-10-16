@@ -122,15 +122,7 @@ def predict_station_wait(
         station_id=station_id,
         arrival_time=arrival_dt,
         charger_count=st.charger_count,
+        station_name=st.name,
     )
 
-    return StationWaitPrediction(
-        station_id=station_id,
-        station_name=st.name,
-        arrival_time=pred_res["arrival_time"],
-        predicted_wait_minutes=pred_res["predicted_wait_minutes"],
-        congestion_level=pred_res["congestion_level"],
-        color_code=pred_res["color_code"],
-        status_text=pred_res["status_text"],
-        confidence_pct=pred_res["confidence_pct"],
-    )
+    return StationWaitPrediction(**pred_res)

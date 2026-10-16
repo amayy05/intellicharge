@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.core.database import get_db
 from app.models.session import ChargingSession
@@ -15,7 +15,7 @@ def complete_session(session_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Session not found")
         
     session.status = "COMPLETED"
-    session.actual_end_at = datetime.utcnow()
+    session.actual_end_at = datetime.now(timezone.utc)
     db.commit()
     
     # Recalculate queue and possibly start the next waiting vehicle

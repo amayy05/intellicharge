@@ -17,10 +17,10 @@ sys.path.insert(0, str(BASE_DIR))  # Needed for data.generator import
 from app.ml.feature_pipeline import FeaturePipeline
 
 try:
-    from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
-    from sklearn.metrics import mean_absolute_error, r2_score
-    from sklearn.model_selection import train_test_split
-    import joblib
+    from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor # type: ignore
+    from sklearn.metrics import mean_absolute_error, r2_score # type: ignore
+    from sklearn.model_selection import train_test_split # type: ignore
+    import joblib # type: ignore
     SKLEARN_AVAILABLE = True
 except ImportError:
     SKLEARN_AVAILABLE = False
@@ -53,13 +53,13 @@ def train_wait_time_model(
         X.append(feat)
         y.append(float(item["wait_minutes"]))
 
-    X = np.array(X)
-    y = np.array(y)
+    X_arr = np.array(X)
+    y_arr = np.array(y)
 
     metrics = {}
 
     if SKLEARN_AVAILABLE:
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(X_arr, y_arr, test_size=0.20, random_state=42)
         
         # Gradient Boosting Regressor for high-precision tabular regression
         model = GradientBoostingRegressor(
@@ -119,7 +119,7 @@ if __name__ == "__main__":
     data_dir = BASE_DIR / "data"
     hist_file = data_dir / "synthetic_queue_history.json"
     if not hist_file.exists():
-        from data.generator.queue_generator import generate_synthetic_dataset
+        from data.generator.queue_generator import generate_synthetic_dataset # type: ignore
         raw_st_path = data_dir / "raw" / "mmr_palghar_stations.json"
         generate_synthetic_dataset(str(raw_st_path), str(hist_file), days=75)
 

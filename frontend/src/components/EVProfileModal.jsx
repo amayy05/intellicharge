@@ -34,54 +34,71 @@ export default function EVProfileModal({ onProfileSaved }) {
   };
 
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-      backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 1000,
-      display: 'flex', justifyContent: 'center', alignItems: 'center'
-    }}>
-      <div className="card" style={{ maxWidth: '500px', width: '90%', padding: '32px' }}>
-        <h2 style={{ color: 'var(--text-dark)', marginTop: 0, marginBottom: '8px' }}>Select Your EV</h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '24px' }}>
-          To accurately predict your waiting and charging times, we need to know your vehicle's specifications.
-        </p>
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[#181A19]/60 backdrop-blur-md">
+      <div className="bg-[#FAF8F5] w-[90%] max-w-[500px] rounded-3xl p-8 shadow-[0_16px_40px_rgba(0,0,0,0.1)] border border-[#E8E4DC]">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-[#EFECE6] flex items-center justify-center border border-[#E8E4DC]">
+            <span className="material-symbols-outlined text-[#181A19]">electric_car</span>
+          </div>
           <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+            <h2 className="font-display text-[22px] font-extrabold text-[#181A19] leading-tight">Select Your EV</h2>
+            <p className="font-body text-xs text-[#6E716E] font-medium">We need this to accurately predict waiting & charging times.</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+          <div>
+            <label className="font-label-ui text-[11px] uppercase tracking-wider text-[#6E716E] font-bold block mb-2">
               Vehicle Model
             </label>
-            <select 
-              className="input-field"
-              value={selectedEv.name}
-              onChange={(e) => {
-                const ev = POPULAR_EVS.find(x => x.name === e.target.value);
-                if (ev) setSelectedEv(ev);
-              }}
-              style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)' }}
-            >
-              {POPULAR_EVS.map(ev => (
-                <option key={ev.name} value={ev.name}>{ev.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)' }}>Battery Capacity</label>
-              <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{selectedEv.capacity} kWh</div>
-            </div>
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)' }}>Max Charging Power</label>
-              <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{selectedEv.maxPower} kW</div>
-            </div>
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)' }}>Connector</label>
-              <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{selectedEv.connector}</div>
+            <div className="relative">
+              <select 
+                className="w-full bg-[#FFFFFF] border border-[#E8E4DC] text-[#181A19] font-body text-sm rounded-xl px-4 py-3 appearance-none focus:outline-none focus:border-[#181A19] focus:ring-1 focus:ring-[#181A19] transition-all shadow-sm"
+                value={selectedEv.name}
+                onChange={(e) => {
+                  const ev = POPULAR_EVS.find(x => x.name === e.target.value);
+                  if (ev) setSelectedEv(ev);
+                }}
+              >
+                {POPULAR_EVS.map(ev => (
+                  <option key={ev.name} value={ev.name}>{ev.name}</option>
+                ))}
+              </select>
+              <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-[#BDB8AE] pointer-events-none">expand_more</span>
             </div>
           </div>
 
-          <button type="submit" className="btn-primary" disabled={loading} style={{ padding: '16px', fontSize: '16px', marginTop: '8px' }}>
-            {loading ? 'Saving...' : 'Save & Continue'}
+          <div className="grid grid-cols-3 gap-3 bg-[#F5F2EB] border border-[#E8E4DC] p-3 rounded-2xl">
+            <div className="flex flex-col gap-1">
+              <label className="font-label-ui text-[10px] uppercase text-[#6E716E] font-bold tracking-wider">Battery</label>
+              <div className="font-metric text-lg font-bold text-[#181A19]">{selectedEv.capacity} <span className="text-sm font-medium text-[#6E716E]">kWh</span></div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="font-label-ui text-[10px] uppercase text-[#6E716E] font-bold tracking-wider">Max Power</label>
+              <div className="font-metric text-lg font-bold text-[#181A19]">{selectedEv.maxPower} <span className="text-sm font-medium text-[#6E716E]">kW</span></div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="font-label-ui text-[10px] uppercase text-[#6E716E] font-bold tracking-wider">Connector</label>
+              <div className="font-metric text-lg font-bold text-[#181A19]">{selectedEv.connector}</div>
+            </div>
+          </div>
+
+          <button 
+            type="submit" 
+            disabled={loading} 
+            className="w-full bg-[#181A19] hover:bg-[#2B2E2C] text-[#FAF8F5] font-label-ui text-[13px] font-bold py-3.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 mt-2 disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <>
+                <span className="material-symbols-outlined animate-spin text-[18px]">sync</span>
+                Saving Profile...
+              </>
+            ) : (
+              <>
+                Save & Continue
+                <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+              </>
+            )}
           </button>
         </form>
       </div>

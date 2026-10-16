@@ -2,14 +2,14 @@
 Feature extraction and preprocessing pipeline for wait-time prediction.
 """
 
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 import numpy as np
 
 
 class FeaturePipeline:
     """Extracts features for wait-time prediction models."""
 
-    def __init__(self, station_stats: Dict[str, Dict[str, float]] = None):
+    def __init__(self, station_stats: Optional[Dict[str, Dict[str, float]]] = None):
         # station_id -> {"mean_wait": float, "mean_occupancy": float, "charger_count": int}
         self.station_stats = station_stats or {}
 
@@ -37,7 +37,7 @@ class FeaturePipeline:
         station_id: str,
         hour: int,
         day_of_week: int,
-        charger_count: int = None,
+        charger_count: Optional[int] = None,
     ) -> List[float]:
         """
         Builds a numeric feature vector:

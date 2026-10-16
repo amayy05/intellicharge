@@ -84,7 +84,13 @@ export default function Navbar({ activeTab, setActiveTab }) {
           Home
         </button>
         <button
-          onClick={() => setActiveTab('recommend')}
+          onClick={() => {
+            if (isAuthenticated) {
+              setActiveTab('recommend');
+            } else {
+              openLoginModal();
+            }
+          }}
           style={{
             padding: '8px 18px',
             borderRadius: 'var(--radius-pill)',
@@ -100,7 +106,13 @@ export default function Navbar({ activeTab, setActiveTab }) {
           Smart Routing
         </button>
         <button
-          onClick={() => setActiveTab('agent')}
+          onClick={() => {
+            if (isAuthenticated) {
+              setActiveTab('agent');
+            } else {
+              openLoginModal();
+            }
+          }}
           style={{
             padding: '8px 18px',
             borderRadius: 'var(--radius-pill)',
@@ -189,6 +201,7 @@ export default function Navbar({ activeTab, setActiveTab }) {
                   onClick={() => {
                     logout();
                     setDropdownOpen(false);
+                    setActiveTab('home');
                   }}
                   style={{
                     display: 'flex',

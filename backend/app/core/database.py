@@ -4,7 +4,7 @@ Database session and engine setup with SQLite and SQLAlchemy ORM.
 
 from pathlib import Path
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from app.core.config import settings
 
 # Ensure directory for DB exists
@@ -18,7 +18,9 @@ engine = create_engine(
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
+
 
 
 def get_db():

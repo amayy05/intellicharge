@@ -3,10 +3,10 @@ Security utilities for password hashing, password verification, and JWT access t
 Uses direct bcrypt for 100% compatibility across all Python versions including 3.13+.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Union, Any
 import bcrypt
-from jose import jwt, JWTError
+from jose import jwt, JWTError # type: ignore
 from app.core.config import settings
 
 
@@ -28,15 +28,16 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def create_access_token(subject: Union[str, Any], expires_delta: Optional[timedelta] = None) -> str:
     """Create a signed JWT access token containing subject (user_id/email)."""
+    now = datetime.now(timezone.utc)
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = now + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         
     to_encode = {
         "exp": expire,
         "sub": str(subject),
-        "iat": datetime.utcnow()
+        "iat": now
     }
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 

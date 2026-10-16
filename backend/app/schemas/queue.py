@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 
@@ -13,6 +13,7 @@ class QueueJoinResponse(BaseModel):
     estimated_duration_minutes: float
     estimated_wait_minutes: float
     estimated_start_time: datetime
+    model_config = ConfigDict(from_attributes=True)
 
 class QueueStatusResponse(BaseModel):
     station_id: str
@@ -20,3 +21,4 @@ class QueueStatusResponse(BaseModel):
     waiting_vehicles: int
     available_chargers: int
     total_chargers: int
+    model_config = ConfigDict(from_attributes=True)

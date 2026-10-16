@@ -1,12 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, Send, User, Sparkles, Terminal, ChevronDown, ChevronUp, Navigation, ExternalLink } from 'lucide-react';
 import { queryAgent } from '../services/api';
 
 const EXAMPLE_QUERIES = [
-  '⚡ 20% battery at Palghar, need CCS2',
-  '🛍️ Fast charger near Thane Viviana Mall',
-  '💼 BKC Mumbai with 15% charge',
-  '🛣️ Traveling NH48 Manor, 100kW+',
+  'Filter 150kW+ only',
+  'Avoid highway tolls',
+  'Pre-condition battery',
 ];
 
 export default function AgentChat({ currentLat, currentLng, currentBattery, currentConnector }) {
@@ -21,7 +19,6 @@ export default function AgentChat({ currentLat, currentLng, currentBattery, curr
   ]);
   const [inputQuery, setInputQuery] = useState('');
   const [loading, setLoading] = useState(false);
-  const [expandedTools, setExpandedTools] = useState({});
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -32,25 +29,13 @@ export default function AgentChat({ currentLat, currentLng, currentBattery, curr
     const textToSend = queryText || inputQuery;
     if (!textToSend.trim() || loading) return;
 
-    const userMsg = {
-      id: Date.now(),
-      sender: 'user',
-      text: textToSend,
-    };
-
+    const userMsg = { id: Date.now(), sender: 'user', text: textToSend };
     setMessages((prev) => [...prev, userMsg]);
     setInputQuery('');
     setLoading(true);
 
     try {
-      const response = await queryAgent(
-        textToSend,
-        currentLat,
-        currentLng,
-        currentBattery,
-        currentConnector
-      );
-
+      const response = await queryAgent(textToSend, currentLat, currentLng, currentBattery, currentConnector);
       const agentMsg = {
         id: Date.now() + 1,
         sender: 'agent',
@@ -58,7 +43,6 @@ export default function AgentChat({ currentLat, currentLng, currentBattery, curr
         toolLogs: response.tool_executions || [],
         card: response.recommended_station,
       };
-
       setMessages((prev) => [...prev, agentMsg]);
     } catch (err) {
       setMessages((prev) => [
@@ -66,7 +50,7 @@ export default function AgentChat({ currentLat, currentLng, currentBattery, curr
         {
           id: Date.now() + 1,
           sender: 'agent',
-          text: `⚠️ **Error communicating with AI Agent:** ${err.message}. Please check that the backend is running.`,
+          text: `⚠️ Error: ${err.message}`,
           toolLogs: [],
           card: null,
         },
@@ -76,276 +60,99 @@ export default function AgentChat({ currentLat, currentLng, currentBattery, curr
     }
   };
 
-  const toggleTools = (msgId) => {
-    setExpandedTools((prev) => ({ ...prev, [msgId]: !prev[msgId] }));
-  };
-
   return (
-    <div className="card" style={{ height: '700px', display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 0 }}>
-      {/* Header */}
-      <div
-        style={{
-          padding: '16px 24px',
-          background: 'var(--bg-card)',
-          borderBottom: '1px solid var(--border-color)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div
-            style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '8px',
-              background: 'var(--primary-accent)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Bot size={20} color="#FFFFFF" />
+    <div className="w-full lg:w-[320px] xl:w-[360px] h-full bg-[#FAF8F5] border-l border-[#E8E4DC] flex flex-col shadow-[-8px_0_28px_rgba(0,0,0,0.03)] z-40">
+      <div className="p-4 bg-[#FAF8F5] border-b border-[#E8E4DC] flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-[#F0EBE1] border border-[#E8E4DC] flex items-center justify-center shadow-sm">
+            <span className="material-symbols-outlined text-[#181A19] text-[22px]">psychology</span>
           </div>
           <div>
-            <h3 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-dark)', margin: 0 }}>AI Agent</h3>
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>Real-time tool-calling over predictive models</p>
+            <div className="flex items-center gap-2">
+              <h1 className="font-display text-[20px] leading-[24px] text-[#181A19] font-extrabold tracking-tight">IntelliCharge AI Co-Pilot</h1>
+              <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></span>
+            </div>
+            <p className="font-body text-xs text-[#6E716E] font-medium">Analyzing live grid & queue telemetry</p>
           </div>
         </div>
       </div>
-
-      {/* Suggested Prompt Chips */}
-      <div
-        style={{
-          padding: '12px 16px',
-          background: 'var(--bg-primary)',
-          borderBottom: '1px solid var(--border-color)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          overflowX: 'auto',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        <span style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '600' }}>
-          <Sparkles size={14} color="var(--primary-accent)" /> Prompts:
-        </span>
-        {EXAMPLE_QUERIES.map((q, idx) => (
-          <button
-            key={idx}
-            onClick={() => handleSend(q)}
-            style={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '16px',
-              padding: '6px 12px',
-              fontSize: '12px',
-              color: 'var(--text-dark)',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            {q}
-          </button>
-        ))}
-      </div>
-
-      {/* Chat Messages Area */}
-      <div style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', background: 'var(--bg-primary)' }}>
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-[#FAF8F5]">
         {messages.map((msg) => (
-          <div
-            key={msg.id}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: msg.sender === 'user' ? 'flex-end' : 'flex-start',
-              gap: '6px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-              {msg.sender === 'user' ? (
-                <>
-                  <span>Driver</span>
-                  <User size={14} />
-                </>
-              ) : (
-                <>
-                  <Bot size={14} color="var(--primary-accent)" />
-                  <span style={{ color: 'var(--text-dark)', fontWeight: '600' }}>IntelliCharge AI</span>
-                </>
-              )}
+          msg.sender === 'user' ? (
+            <div key={msg.id} className="flex justify-end items-start gap-2.5 pl-8">
+              <div className="flex flex-col items-end">
+                <div className="bg-[#EFECE6] border border-[#E8E4DC] text-[#181A19] px-4 py-2.5 rounded-2xl rounded-tr-xs shadow-sm max-w-sm">
+                  <p className="font-body text-sm text-[#181A19] font-medium leading-relaxed">{msg.text}</p>
+                </div>
+              </div>
+              <div className="w-7 h-7 rounded-full bg-[#181A19] border border-[#2B2E2C] flex items-center justify-center text-[#FAF8F5] shrink-0 shadow-sm">
+                <span className="material-symbols-outlined text-[15px]">person</span>
+              </div>
             </div>
-
-            <div
-              style={{
-                maxWidth: '85%',
-                padding: '16px',
-                borderRadius: '16px',
-                background: msg.sender === 'user' ? 'var(--primary-accent)' : 'var(--bg-dark-card)',
-                color: msg.sender === 'user' ? '#FFFFFF' : 'var(--text-light)',
-                fontSize: '14px',
-                lineHeight: '1.5',
-                border: msg.sender === 'user' ? 'none' : '1px solid var(--bg-dark-card)',
-                whiteSpace: 'pre-line',
-                boxShadow: 'var(--shadow-subtle)',
-              }}
-            >
-              {msg.text}
-
-              {/* Tool Execution Logs Accordion */}
-              {msg.toolLogs && msg.toolLogs.length > 0 && (
-                <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                  <button
-                    onClick={() => toggleTools(msg.id)}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'var(--text-muted)',
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: 0,
-                    }}
-                  >
-                    <Terminal size={14} color="var(--primary-accent)" />
-                    <span>Agent Tool Calls ({msg.toolLogs.length})</span>
-                    {expandedTools[msg.id] ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                  </button>
-
-                  {expandedTools[msg.id] && (
-                    <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {msg.toolLogs.map((tl, tIdx) => (
-                        <div
-                          key={tIdx}
-                          style={{
-                            background: '#1F2937',
-                            padding: '8px 12px',
-                            borderRadius: '8px',
-                            fontSize: '12px',
-                            borderLeft: '3px solid var(--primary-accent)',
-                          }}
-                        >
-                          <div style={{ color: 'var(--primary-accent)', fontWeight: '600' }}>→ {tl.tool_name}()</div>
-                          <div style={{ color: 'var(--text-muted)', marginTop: '4px' }}>{tl.result_summary}</div>
-                        </div>
-                      ))}
+          ) : (
+            <div key={msg.id} className="flex justify-start items-start gap-2.5 pr-6">
+              <div className="w-7 h-7 rounded-full bg-[#F0EBE1] border border-[#E8E4DC] flex items-center justify-center text-[#181A19] shrink-0 shadow-sm">
+                <span className="material-symbols-outlined text-[15px] font-bold">auto_awesome</span>
+              </div>
+              <div className="flex flex-col items-start gap-2 max-w-full">
+                <div className="bg-[#FFFFFF] border border-[#E8E4DC] text-[#181A19] p-4 rounded-2xl rounded-tl-xs shadow-[0_4px_20px_rgba(0,0,0,0.06)] space-y-3">
+                  <p className="font-body text-sm text-[#595C59] leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                  
+                  {msg.card && (
+                    <div className="p-3 bg-[#F5F2EB] border border-[#E8E4DC] rounded-xl space-y-2">
+                      <div className="flex items-center justify-between text-xs font-label-ui">
+                        <span className="text-[#181A19] flex items-center gap-1 font-bold">
+                          <span className="material-symbols-outlined text-[14px] text-[#181A19]">ev_station</span>
+                          {msg.card.station_name}
+                        </span>
+                        <span className="text-[#181A19] font-bold">~{Math.round(msg.card.breakdown?.predicted_wait_minutes || 0)}m wait</span>
+                      </div>
+                      <a href={msg.card.google_maps_url} target="_blank" rel="noreferrer" className="text-[11px] text-[#10B981] font-bold">Navigate in Maps →</a>
+                    </div>
+                  )}
+                  {msg.toolLogs && msg.toolLogs.length > 0 && (
+                    <div className="text-[11px] text-[#6E716E] font-medium border-t border-[#E8E4DC] pt-2">
+                      Used tools: {msg.toolLogs.map(t => t.tool_name).join(', ')}
                     </div>
                   )}
                 </div>
-              )}
-
-              {/* Embedded Recommendation Card if present */}
-              {msg.card && (
-                <div
-                  style={{
-                    marginTop: '16px',
-                    padding: '16px',
-                    background: '#1F2937',
-                    border: '1px solid var(--primary-accent)',
-                    borderRadius: '12px',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <strong style={{ color: '#FFFFFF', fontSize: '15px' }}>{msg.card.station_name}</strong>
-                    <span style={{ color: 'var(--primary-accent)', fontSize: '13px', fontWeight: '700' }}>
-                      {msg.card.breakdown.predicted_wait_minutes < 1 ? '<1' : '~' + Math.round(msg.card.breakdown.predicted_wait_minutes)}m wait
-                    </span>
-                  </div>
-                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                    {msg.card.breakdown.road_distance_km} km away • ~{msg.card.breakdown.travel_time_minutes}m drive
-                  </p>
-                  <a
-                    href={msg.card.google_maps_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '8px 16px',
-                      background: 'var(--primary-accent)',
-                      color: '#FFFFFF',
-                      borderRadius: '8px',
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      textDecoration: 'none',
-                    }}
-                  >
-                    <Navigation size={14} />
-                    Navigate via Maps
-                    <ExternalLink size={12} />
-                  </a>
-                </div>
-              )}
+              </div>
             </div>
-          </div>
+          )
         ))}
-
         {loading && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', fontSize: '13px' }}>
-            <Bot size={18} color="var(--primary-accent)" className="animate-spin" />
-            <span>Agent reasoning and predicting station queue...</span>
+          <div className="flex justify-start items-center gap-2 text-[#6E716E] text-xs font-label-ui">
+             <span className="material-symbols-outlined animate-spin text-[16px]">sync</span>
+             Agent reasoning...
           </div>
         )}
-
         <div ref={messagesEndRef} />
+        
+        <div className="pt-1 flex flex-wrap gap-2">
+          {EXAMPLE_QUERIES.map((q, i) => (
+             <button key={i} onClick={() => handleSend(q)} className="px-4 py-1.5 rounded-full bg-[#FFFFFF] border border-[#E8E4DC] hover:bg-[#F5F2EB] hover:border-[#BDB8AE] text-[#181A19] font-label-ui text-xs font-semibold transition-all shadow-sm">
+                {q}
+             </button>
+          ))}
+        </div>
       </div>
-
-      {/* Input Bar */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleSend();
-        }}
-        style={{
-          padding: '16px 24px',
-          background: 'var(--bg-card)',
-          borderTop: '1px solid var(--border-color)',
-          display: 'flex',
-          gap: '12px',
-        }}
-      >
-        <input
-          type="text"
-          placeholder="Ask anything (e.g., '18% battery, find best CCS2 fast charger')..."
-          value={inputQuery}
-          onChange={(e) => setInputQuery(e.target.value)}
-          style={{
-            flex: 1,
-            padding: '12px 16px',
-            background: 'var(--bg-primary)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '12px',
-            color: 'var(--text-dark)',
-            fontSize: '14px',
-            outline: 'none',
-          }}
-        />
-        <button
-          type="submit"
-          disabled={loading || !inputQuery.trim()}
-          style={{
-            padding: '12px 24px',
-            background: 'var(--bg-dark-card)',
-            border: 'none',
-            borderRadius: '12px',
-            color: 'var(--text-light)',
-            fontWeight: '600',
-            fontSize: '14px',
-            cursor: loading ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            opacity: loading || !inputQuery.trim() ? 0.6 : 1,
-          }}
-        >
-          <Send size={18} />
-          Send
-        </button>
-      </form>
+      <div className="p-4 bg-[#FAF8F5] border-t border-[#E8E4DC]">
+        <form className="flex flex-col gap-2" onSubmit={(e) => { e.preventDefault(); handleSend(); }}>
+          <div className="relative flex items-center bg-[#FFFFFF] border border-[#E8E4DC] rounded-2xl px-4 py-2 shadow-sm focus-within:border-[#181A19] transition-all">
+            <input 
+              className="w-full bg-transparent font-body text-sm text-[#181A19] placeholder:text-[#9E9B93] focus:outline-none pr-20" 
+              placeholder="Ask Co-Pilot..." 
+              value={inputQuery} 
+              onChange={(e) => setInputQuery(e.target.value)} 
+            />
+            <div className="absolute right-2 flex items-center gap-1">
+              <button disabled={loading} type="submit" className="h-8 px-3 bg-[#181A19] hover:bg-[#2B2E2C] text-[#FAF8F5] rounded-xl font-label-ui text-xs font-bold flex items-center gap-1 transition-all shadow-sm">
+                Send <span className="material-symbols-outlined text-[16px]">arrow_upward</span>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

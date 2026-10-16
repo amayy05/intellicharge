@@ -2,7 +2,7 @@
 Service for simulating dynamic queues and multi-charger scheduling.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
@@ -10,6 +10,15 @@ from sqlalchemy import or_
 from app.models.station import Station
 from app.models.session import ChargingSession
 from app.models.queue_entry import QueueEntry
+
+def to_utc(dt: Optional[datetime]) -> Optional[datetime]:
+    """Ensures a datetime is timezone-aware UTC, even when loaded from SQLite as naive."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
 
 def get_station_queue_status(db: Session, station_id: str) -> dict:
     """
@@ -40,12 +49,12 @@ def get_station_queue_status(db: Session, station_id: str) -> dict:
     }
 
 
-def estimate_queue_wait_time(db: Session, station_id: str, new_charging_duration_minutes: float) -> Tuple[float, Optional[datetime]]:
+def estimate_queue_wait_time(db: Session, station_id: str, new_charging_duration_minutes: float) -> Tuple[float, datetime]:
     """
     Estimates the wait time for a new vehicle arriving at the station.
     Returns (wait_time_minutes, estimated_start_time).
     """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     
     station = db.query(Station).filter(Station.id == station_id).first()
     if not station:
@@ -72,10 +81,11 @@ def estimate_queue_wait_time(db: Session, station_id: str, new_charging_duration
     # Initialize with active sessions
     for session in active_sessions:
         if session.estimated_end_at:
-            charger_available_times.append(session.estimated_end_at)
+            charger_available_times.append(to_utc(session.estimated_end_at))
         else:
             # Fallback if somehow estimated_end_at is missing
-            est = session.started_at + timedelta(minutes=session.estimated_duration_minutes or 30)
+            started = to_utc(session.started_at) or now
+            est = started + timedelta(minutes=session.estimated_duration_minutes or 30)
             charger_available_times.append(max(now, est))
             
     # Add available chargers
@@ -101,7 +111,7 @@ def estimate_queue_wait_time(db: Session, station_id: str, new_charging_duration
     my_start_time = max(now, charger_available_times[0])
     
     wait_time_minutes = (my_start_time - now).total_seconds() / 60.0
-    return round(wait_time_minutes, 1), my_start_time
+    return max(0.0, round(wait_time_minutes, 1)), my_start_time
 
 
 def recalculate_queue(db: Session, station_id: str):
@@ -109,7 +119,7 @@ def recalculate_queue(db: Session, station_id: str):
     Recalculates the estimated start and end times for all waiting entries at a station.
     This should be called when a session completes or a new vehicle joins.
     """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     
     station = db.query(Station).filter(Station.id == station_id).first()
     if not station:
@@ -131,9 +141,10 @@ def recalculate_queue(db: Session, station_id: str):
     
     for session in active_sessions:
         if session.estimated_end_at:
-            charger_available_times.append(session.estimated_end_at)
+            charger_available_times.append(to_utc(session.estimated_end_at))
         else:
-            est = session.started_at + timedelta(minutes=session.estimated_duration_minutes or 30)
+            started = to_utc(session.started_at) or now
+            est = started + timedelta(minutes=session.estimated_duration_minutes or 30)
             charger_available_times.append(max(now, est))
             
     available_count = max(0, charger_count - len(active_sessions))
@@ -158,7 +169,7 @@ def check_and_start_sessions(db: Session, station_id: str):
     Checks if there are available chargers and waiting vehicles.
     If so, transitions WAITING vehicles to CHARGING automatically (for simulation purposes).
     """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     
     station = db.query(Station).filter(Station.id == station_id).first()
     if not station:

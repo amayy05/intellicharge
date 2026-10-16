@@ -1,36 +1,32 @@
 """
 Service for simulating time passing in the queue system.
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
 from app.models.session import ChargingSession
 from app.models.queue_entry import QueueEntry
-from app.services.queue_engine import check_and_start_sessions, recalculate_queue
+from app.services.queue_engine import check_and_start_sessions, recalculate_queue, to_utc
 
 def advance_time(db: Session, minutes: float):
     """
     Simulates the passage of time.
     Completes sessions that should be finished and starts new ones.
     """
-    now = datetime.utcnow()
-    # We pretend "now" is now, but things might have ended in the past relative to the simulation
-    # Actually, the simplest way to simulate time passage on actual DB records is to reduce the 
-    # estimated/actual end times and start times by `minutes`.
-    
+    now = datetime.now(timezone.utc)
     delta = timedelta(minutes=minutes)
     
     # 1. Update active sessions: shift their started_at and estimated_end_at backward in time
     active_sessions = db.query(ChargingSession).filter(ChargingSession.status == "CHARGING").all()
     for session in active_sessions:
         if session.started_at:
-            session.started_at = session.started_at - delta
+            session.started_at = to_utc(session.started_at) - delta
         if session.estimated_end_at:
-            session.estimated_end_at = session.estimated_end_at - delta
+            session.estimated_end_at = to_utc(session.estimated_end_at) - delta
             
             # If the session has ended
-            if session.estimated_end_at <= now:
+            if to_utc(session.estimated_end_at) <= now:
                 session.status = "COMPLETED"
                 session.actual_end_at = now
     
@@ -41,7 +37,7 @@ def advance_time(db: Session, minutes: float):
     
     for entry in waiting_entries:
         if entry.joined_at:
-            entry.joined_at = entry.joined_at - delta
+            entry.joined_at = to_utc(entry.joined_at) - delta
             
     db.commit()
     

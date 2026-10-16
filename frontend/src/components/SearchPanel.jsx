@@ -102,12 +102,12 @@ export default function SearchPanel({
       
       {/* Battery / Car Overview Card - DARK THEME WITH DYNAMIC STATE */}
       <div
-        className="card"
+        className="bg-[#FFFFFF] rounded-2xl p-5"
         style={{
-          background: 'linear-gradient(145deg, #0f241a 0%, #06110c 100%)',
-          color: '#F9FAFB',
+          background: '#FFFFFF',
+          color: '#181A19',
           border: `1px solid ${status.border}44`,
-          boxShadow: `0 12px 32px rgba(0, 0, 0, 0.3), 0 0 20px ${status.shadow}`,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.05)',
           transition: 'all 0.4s ease',
         }}
       >
@@ -126,7 +126,7 @@ export default function SearchPanel({
               Battery Health
             </span>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginTop: '4px' }}>
-              <span style={{ fontSize: '38px', fontWeight: '700', color: '#FFFFFF', lineHeight: 1 }}>
+              <span style={{ fontSize: '38px', fontWeight: '700', color: '#181A19', lineHeight: 1 }}>
                 {batteryPct}
               </span>
               <span style={{ fontSize: '22px', fontWeight: '600', color: status.color }}>%</span>
@@ -151,7 +151,7 @@ export default function SearchPanel({
             <span
               style={{
                 fontSize: '11px',
-                color: '#9CA3AF',
+                color: '#6E716E',
                 fontWeight: '600',
                 textTransform: 'uppercase',
                 letterSpacing: '1.2px',
@@ -161,11 +161,11 @@ export default function SearchPanel({
               Remaining Range
             </span>
             <div style={{ marginTop: '4px' }}>
-              <span style={{ fontSize: '24px', fontWeight: '700', color: '#FFFFFF', lineHeight: 1 }}>
+              <span style={{ fontSize: '24px', fontWeight: '700', color: '#181A19', lineHeight: 1 }}>
                 {estimatedRangeKm} <span style={{ fontSize: '14px', fontWeight: '500', color: status.color }}>km</span>
               </span>
             </div>
-            <span style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '4px', display: 'block' }}>
+            <span style={{ fontSize: '11px', color: '#6E716E', marginTop: '4px', display: 'block' }}>
               Est. Max 320 km
             </span>
           </div>
@@ -182,10 +182,10 @@ export default function SearchPanel({
                   flex: 1,
                   background: isFilled
                     ? status.gradient
-                    : 'rgba(255, 255, 255, 0.08)',
+                    : '#F5F2EB',
                   border: isFilled
                     ? `1px solid ${status.border}`
-                    : '1px solid rgba(255, 255, 255, 0.05)',
+                    : '1px solid #E8E4DC',
                   borderRadius: '6px',
                   display: 'flex',
                   alignItems: 'center',
@@ -195,7 +195,7 @@ export default function SearchPanel({
                 }}
               >
                 {isFilled && (
-                  <span style={{ fontSize: '11px', fontWeight: '800', color: '#06281b' }}>
+                  <span style={{ fontSize: '11px', fontWeight: '800', color: '#FFFFFF' }}>
                     {(i + 1) * 20}%
                   </span>
                 )}
@@ -206,7 +206,7 @@ export default function SearchPanel({
 
         {/* Interactive slider to adjust battery */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-          <span style={{ fontSize: '10px', color: '#6EE7B7', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Adjust SoC:</span>
+          <span style={{ fontSize: '10px', color: '#181A19', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Adjust SoC:</span>
           <input
             type="range"
             min="5"
@@ -216,9 +216,10 @@ export default function SearchPanel({
             onChange={(e) => setBatteryPct(Number(e.target.value))}
             style={{ flex: 1, accentColor: status.color, cursor: 'pointer', height: '4px' }}
           />
+        </div>
         {/* Interactive slider to adjust target battery */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px' }}>
-          <span style={{ fontSize: '10px', color: '#6EE7B7', textTransform: 'uppercase', letterSpacing: '0.8px', width: '80px' }}>Target SoC:</span>
+          <span style={{ fontSize: '10px', color: '#181A19', textTransform: 'uppercase', letterSpacing: '0.8px', width: '80px' }}>Target SoC:</span>
           <input
             type="range"
             min={batteryPct + 5}
@@ -231,10 +232,9 @@ export default function SearchPanel({
           <span style={{ fontSize: '12px', fontWeight: 'bold', width: '30px', textAlign: 'right' }}>{targetSoc}%</span>
         </div>
       </div>
-      </div>
 
       {/* Destination / Search Params Card */}
-      <div className="card">
+      <div className="bg-[#FFFFFF] border border-[#E8E4DC] rounded-2xl p-5 shadow-sm">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
           <label style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', margin: 0 }}>
             Origin Location

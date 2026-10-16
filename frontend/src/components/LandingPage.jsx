@@ -101,7 +101,13 @@ export default function LandingPage({ setActiveTab }) {
           {/* CTA Buttons */}
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '8px' }}>
             <button
-              onClick={() => setActiveTab('recommend')}
+              onClick={() => {
+                if (isAuthenticated) {
+                  setActiveTab('recommend');
+                } else {
+                  openLoginModal();
+                }
+              }}
               style={{
                 background: 'var(--primary-accent)',
                 color: '#FFF',
@@ -122,7 +128,13 @@ export default function LandingPage({ setActiveTab }) {
             </button>
 
             <button
-              onClick={() => setActiveTab('agent')}
+              onClick={() => {
+                if (isAuthenticated) {
+                  setActiveTab('agent');
+                } else {
+                  openLoginModal();
+                }
+              }}
               style={{
                 background: 'rgba(255, 255, 255, 0.08)',
                 color: '#FFF',
@@ -471,7 +483,13 @@ export default function LandingPage({ setActiveTab }) {
           Launch the interactive routing engine now to view live predictions, virtual queues, and charger availability in Palghar and MMR.
         </p>
         <button
-          onClick={() => setActiveTab('recommend')}
+          onClick={() => {
+            if (isAuthenticated) {
+              setActiveTab('recommend');
+            } else {
+              openLoginModal();
+            }
+          }}
           style={{
             background: 'var(--primary-accent)',
             color: '#FFF',

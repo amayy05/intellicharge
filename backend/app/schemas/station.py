@@ -3,8 +3,7 @@ Pydantic schemas for Stations.
 """
 
 from typing import List, Optional
-from pydantic import BaseModel, Field
-
+from pydantic import BaseModel, Field, ConfigDict
 
 class StationBase(BaseModel):
     id: str
@@ -23,16 +22,16 @@ class StationBase(BaseModel):
 
 
 class StationResponse(StationBase):
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StationWaitPrediction(BaseModel):
     station_id: str
-    station_name: str
+    station_name: Optional[str] = None
     arrival_time: str
     predicted_wait_minutes: float
     congestion_level: str
     color_code: str
     status_text: str
     confidence_pct: float
+    model_config = ConfigDict(from_attributes=True)
