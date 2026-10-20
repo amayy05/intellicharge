@@ -33,5 +33,26 @@ class StationWaitPrediction(BaseModel):
     congestion_level: str
     color_code: str
     status_text: str
-    confidence_pct: float
+    # "model" = trained ML inference; "heuristic" = time-of-day estimate (no false accuracy %)
+    confidence_source: str = "heuristic"
     model_config = ConfigDict(from_attributes=True)
+
+
+class HourlyWaitForecast(BaseModel):
+    hour: int
+    hour_label: str
+    arrival_time: str
+    predicted_wait_minutes: float
+    congestion_level: str
+    color_code: str
+
+
+class Station24hForecast(BaseModel):
+    station_id: str
+    station_name: Optional[str] = None
+    generated_at: str
+    confidence_source: str = "heuristic"
+    current_wait_minutes: float
+    peak_wait_minutes: float
+    peak_hour_label: Optional[str] = None
+    hours: List[HourlyWaitForecast]

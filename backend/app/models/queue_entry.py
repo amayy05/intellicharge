@@ -13,8 +13,10 @@ class QueueEntry(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     station_id: Mapped[str] = mapped_column(String, index=True, nullable=False)
     vehicle_id: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
-    
-    session_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True) # Optional link to the actual session if assigned
+    # Owner reference — required for authorization checks (IDOR prevention)
+    user_id: Mapped[Optional[int]] = mapped_column(Integer, index=True, nullable=True)
+
+    session_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Optional link to the actual session if assigned
 
     joined_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -22,5 +24,5 @@ class QueueEntry(Base):
     estimated_start_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     estimated_end_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
-    status: Mapped[str] = mapped_column(String, nullable=False, default="WAITING") # WAITING, ASSIGNED, CHARGING, COMPLETED, CANCELLED, EXPIRED
+    status: Mapped[str] = mapped_column(String, nullable=False, default="WAITING")  # WAITING, ASSIGNED, CHARGING, COMPLETED, CANCELLED, EXPIRED
     priority: Mapped[int] = mapped_column(Integer, default=0)

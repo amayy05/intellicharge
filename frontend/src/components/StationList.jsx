@@ -65,7 +65,11 @@ export default function StationList({
       {/* Hero Recommendation Screen */}
       <div>
         <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Best charging option</h2>
-        <div className="card" style={{ border: '2px solid var(--primary-accent)' }}>
+        <div
+          className="card"
+          onClick={() => onSelectStation && onSelectStation(bestStation)}
+          style={{ border: '2px solid var(--primary-accent)', cursor: 'pointer' }}
+        >
           <span style={{ 
             fontSize: '11px', 
             fontWeight: '700', 

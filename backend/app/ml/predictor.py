@@ -105,7 +105,8 @@ class WaitTimePredictor:
             "congestion_level": congestion_level,
             "color_code": color_code,
             "status_text": status_text,
-            "confidence_pct": 92.5 if self.model else 80.0,
+            # Confidence label: "model" means trained ML inference; "heuristic" is a time-of-day estimate
+            "confidence_source": "model" if self.model else "heuristic",
         }
 
 

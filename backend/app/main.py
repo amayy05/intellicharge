@@ -20,11 +20,15 @@ Base.metadata.create_all(bind=engine)
 
 # Auto-migrate optional columns if existing SQLite DB was created previously
 with engine.connect() as conn:
-    try:
-        conn.execute(text("ALTER TABLE users ADD COLUMN name VARCHAR"))
-        conn.commit()
-    except Exception:
-        pass
+    for migration in [
+        "ALTER TABLE users ADD COLUMN name VARCHAR",
+        "ALTER TABLE queue_entries ADD COLUMN user_id INTEGER",
+    ]:
+        try:
+            conn.execute(text(migration))
+            conn.commit()
+        except Exception:
+            pass
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -32,16 +36,19 @@ app = FastAPI(
     description="Smart EV Charging Network with Predictive Queue Estimation & Intelligent Routing",
 )
 
-# CORS configuration
+# CORS configuration: explicit allowlist from env; allow_credentials is safe because
+# origins are not wildcard in production.
+_origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
-# Include API Routers
+# Include API Routers — mounted with /api prefix as standard
 app.include_router(auth_router, prefix=settings.API_V1_STR)
 app.include_router(stations_router, prefix=settings.API_V1_STR)
 app.include_router(recommend_router, prefix=settings.API_V1_STR)
@@ -50,14 +57,14 @@ app.include_router(vehicles_router, prefix=settings.API_V1_STR)
 app.include_router(queue_router, prefix=settings.API_V1_STR)
 app.include_router(sessions_router, prefix=settings.API_V1_STR)
 
-# Also expose at top-level for direct compatibility with PRD specification
-app.include_router(auth_router)
+# Also mount legacy routes at root for backward compatibility with frontend clients and tests
 app.include_router(stations_router)
 app.include_router(recommend_router)
 app.include_router(agent_router)
 app.include_router(vehicles_router)
 app.include_router(queue_router)
 app.include_router(sessions_router)
+
 
 
 @app.get("/", tags=["Health"])

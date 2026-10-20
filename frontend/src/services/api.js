@@ -102,6 +102,18 @@ export async function fetchStationPrediction(stationId, arrivalTs = null) {
   return res.json();
 }
 
+export async function fetchStationQueue(stationId) {
+  const res = await fetch(`${API_BASE}/api/stations/${stationId}/queue`);
+  if (!res.ok) throw new Error(`Error fetching queue: ${res.statusText}`);
+  return res.json();
+}
+
+export async function fetchStationForecast24h(stationId) {
+  const res = await fetch(`${API_BASE}/stations/${stationId}/forecast-24h`);
+  if (!res.ok) throw new Error(`Error fetching 24h forecast: ${res.statusText}`);
+  return res.json();
+}
+
 /* ---------------- Vehicles & Profiles ---------------- */
 
 export async function saveEVProfile(vehicleData) {

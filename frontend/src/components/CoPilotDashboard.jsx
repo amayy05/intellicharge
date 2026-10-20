@@ -6,8 +6,22 @@ import QueuePredictor from "./QueuePredictor";
 import DriverAuth from "./DriverAuth";
 import SearchPanel from "./SearchPanel";
 import StationList from "./StationList";
+import { useAuth } from "../context/AuthContext";
+import { estimatedRangeKm } from "../utils/stationDisplay";
+
 export default function CoPilotDashboard({ location, setLocation, batteryPct, setBatteryPct, targetSoc, setTargetSoc, connectorType, setConnectorType, radiusKm, setRadiusKm, recommendationData, onSearch, loading, userVehicle }) {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [selectedStation, setSelectedStation] = useState(null);
+  const { isAuthenticated, user, openLoginModal } = useAuth();
+  const rangeKm = estimatedRangeKm(batteryPct, userVehicle, recommendationData?.estimated_range_km);
+  const vehicleLabel = userVehicle?.model_name || 'No EV profile';
+
+  // Default selected station to top recommendation when data refreshes
+  React.useEffect(() => {
+    if (recommendationData?.top_recommendation) {
+      setSelectedStation(recommendationData.top_recommendation);
+    }
+  }, [recommendationData]);
 
   const navItemClass = (tabId) => 
     activeTab === tabId 
@@ -25,10 +39,10 @@ export default function CoPilotDashboard({ location, setLocation, batteryPct, se
               </div>
             </div>
             <div className="hidden xl:flex items-center gap-2 bg-[#F5F2EB] border border-[#E8E4DC] px-4 py-1.5 rounded-full shadow-sm">
-              <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#181A19] animate-pulse"></span><span className="font-label-ui text-[11px] uppercase tracking-wider text-[#181A19] font-bold">Safe range warning</span></div>
-              <span className="text-[#BDB8AE] text-xs">•</span><span className="font-label-ui text-xs text-[#181A19] font-semibold">Tesla Model 3</span>
-              <span className="text-[#BDB8AE] text-xs">•</span><span className="font-label-ui text-xs text-[#181A19] font-bold">23% SoC</span>
-              <span className="text-[#BDB8AE] text-xs">•</span><span className="font-label-ui text-xs text-[#6E716E]">82 km range</span>
+              <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#181A19] animate-pulse"></span><span className="font-label-ui text-[11px] uppercase tracking-wider text-[#181A19] font-bold">{batteryPct <= 30 ? 'Low range' : 'Live vehicle'}</span></div>
+              <span className="text-[#BDB8AE] text-xs">•</span><span className="font-label-ui text-xs text-[#181A19] font-semibold">{vehicleLabel}</span>
+              <span className="text-[#BDB8AE] text-xs">•</span><span className="font-label-ui text-xs text-[#181A19] font-bold">{batteryPct}% SoC</span>
+              <span className="text-[#BDB8AE] text-xs">•</span><span className="font-label-ui text-xs text-[#6E716E]">{rangeKm} km range</span>
             </div>
           </div>
           <nav className="hidden lg:flex items-center gap-2">
@@ -39,12 +53,19 @@ export default function CoPilotDashboard({ location, setLocation, batteryPct, se
           </nav>
           <div className="flex items-center gap-4">
             <div className="hidden md:flex items-center gap-2 bg-[#F5F2EB] border border-[#E8E4DC] px-4 py-1.5 rounded-full">
-              <span className="font-label-ui text-[11px] uppercase text-[#6E716E] tracking-wider font-semibold">Grid Load</span>
-              <span className="font-label-ui text-xs text-[#181A19] font-bold">71% (Optimal)</span>
+              <span className="font-label-ui text-[11px] uppercase text-[#6E716E] tracking-wider font-semibold">{location.region || 'Location'}</span>
+              <span className="font-label-ui text-xs text-[#181A19] font-bold truncate max-w-[160px]">{location.label}</span>
             </div>
-            <div className="w-9 h-9 rounded-full bg-[#181A19] flex items-center justify-center shadow-md">
-              <span className="material-symbols-outlined text-[#FAF8F5] text-[20px]">person</span>
-            </div>
+            <button
+              type="button"
+              onClick={() => (isAuthenticated ? setActiveTab('driver-auth') : openLoginModal())}
+              className="w-9 h-9 rounded-full bg-[#181A19] flex items-center justify-center shadow-md cursor-pointer"
+              title={user?.email || 'Sign in'}
+            >
+              <span className="material-symbols-outlined text-[#FAF8F5] text-[20px]">
+                {isAuthenticated ? 'person' : 'login'}
+              </span>
+            </button>
           </div>
         </div>
       </header>
@@ -71,50 +92,50 @@ export default function CoPilotDashboard({ location, setLocation, batteryPct, se
                 <StationList
                   recommendationData={recommendationData}
                   loading={loading}
-                  onSelectStation={(st) => console.log('Selected card:', st)}
+                  onSelectStation={(st) => setSelectedStation(st)}
                   userVehicle={userVehicle}
                   currentSoc={batteryPct}
                   targetSoc={targetSoc}
                 />
               </div>
-              <div className="relative flex-1 h-full w-full bg-[#F3EFE9] overflow-hidden select-none">
-                <div className="absolute inset-0 w-full h-full opacity-85 z-0">
-                  <MapView userLocation={location} stations={recommendationData?.ranked_stations || []} topStationId={recommendationData?.top_recommendation?.station_id} onSelectStation={()=>{}} />
+              <div className="relative flex-1 h-full w-full bg-[#F3EFE9] overflow-hidden">
+                <div className="absolute inset-0 w-full h-full z-0">
+                  <MapView
+                    userLocation={location}
+                    stations={recommendationData?.ranked_stations || []}
+                    topStationId={recommendationData?.top_recommendation?.station_id}
+                    selectedStationId={selectedStation?.station_id}
+                    onSelectStation={(st) => setSelectedStation(st)}
+                  />
                 </div>
-                <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-[#F9F7F2]/90 via-[#F9F7F2]/25 to-[#F9F7F2]/75 z-10"></div>
-                <svg className="absolute inset-0 w-full h-full pointer-events-none z-10" preserveAspectRatio="none" viewBox="0 0 1000 800">
-                  <defs>
-                    <linearGradient id="routeGlowWarm" x1="0%" x2="100%" y1="100%" y2="0%">
-                      <stop offset="0%" stopColor="#6E716E" stopOpacity="0.5" />
-                      <stop offset="60%" stopColor="#242725" stopOpacity="0.95" />
-                      <stop offset="100%" stopColor="#181A19" stopOpacity="1" />
-                    </linearGradient>
-                    <filter height="140%" id="vectorGlowWarm" width="140%" x="-20%" y="-20%">
-                      <feDropShadow dx="0" dy="2" floodColor="#181A19" floodOpacity="0.25" stdDeviation="3" />
-                    </filter>
-                  </defs>
-                  <path className="animate-pulse" d="M 210,640 Q 320,530 430,470 T 620,310 T 730,190" fill="none" filter="url(#vectorGlowWarm)" stroke="url(#routeGlowWarm)" strokeDasharray="10 8" strokeLinecap="round" strokeWidth="6" />
-                  <path d="M 210,640 Q 260,490 350,420 T 420,290" fill="none" stroke="#9E9B93" strokeDasharray="6 6" strokeOpacity="0.65" strokeWidth="3" />
-                </svg>
                 <div className="absolute top-4 left-4 right-4 lg:right-auto z-20 flex flex-wrap items-center gap-2">
                   <div className="flex items-center gap-2 bg-[#FFFFFF]/90 border border-[#E8E4DC] backdrop-blur-2xl px-4 py-1.5 rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.05)]">
                     <div className="relative flex items-center justify-center">
                       <span className="w-3 h-3 rounded-full bg-[#181A19] animate-ping absolute opacity-50"></span>
                       <span className="w-2.5 h-2.5 rounded-full bg-[#181A19]"></span>
                     </div>
-                    <span className="font-label-ui text-xs text-[#181A19]">Vehicle Telemetry: <strong className="text-[#181A19] font-bold">23% SoC</strong> (82 km)</span>
+                    <span className="font-label-ui text-xs text-[#181A19]">Vehicle: <strong className="text-[#181A19] font-bold">{batteryPct}% SoC</strong> ({rangeKm} km)</span>
                     <span className="text-[#BDB8AE] text-xs">•</span>
-                    <span className="font-label-ui text-[11px] uppercase tracking-wider text-[#6E716E] font-semibold">Optimal Speed: 108 km/h</span>
+                    <span className="font-label-ui text-[11px] uppercase tracking-wider text-[#6E716E] font-semibold">{vehicleLabel}</span>
                   </div>
                   <div className="flex items-center gap-1 bg-[#FFFFFF]/90 border border-[#E8E4DC] backdrop-blur-2xl p-1 rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.05)]">
-                    <button className="flex items-center gap-1.5 px-4 py-1 rounded-full bg-[#181A19] text-[#FAF8F5] font-label-ui text-xs font-bold transition-all shadow-sm" id="btn-ccs2">
-                      <span className="material-symbols-outlined text-[16px]">ev_station</span><span className="">CCS2 Filter</span>
+                    <button
+                      type="button"
+                      onClick={() => setConnectorType(connectorType === 'CCS2' ? 'All' : 'CCS2')}
+                      className={`flex items-center gap-1.5 px-4 py-1 rounded-full font-label-ui text-xs font-bold transition-all shadow-sm ${
+                        connectorType === 'CCS2' ? 'bg-[#181A19] text-[#FAF8F5]' : 'text-[#595C59] hover:bg-[#F5F2EB]'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[16px]">ev_station</span><span>CCS2</span>
                     </button>
-                    <button className="flex items-center gap-1.5 px-4 py-1 rounded-full text-[#595C59] hover:text-[#181A19] hover:bg-[#F5F2EB] font-label-ui text-xs font-medium transition-all" id="btn-kw">
-                      <span className="material-symbols-outlined text-[16px]">bolt</span><span className="">150kW+ Fast</span>
-                    </button>
-                    <button className="flex items-center gap-1.5 px-4 py-1 rounded-full text-[#595C59] hover:text-[#181A19] hover:bg-[#F5F2EB] font-label-ui text-xs font-medium transition-all" id="btn-green">
-                      <span className="material-symbols-outlined text-[16px]">energy_savings_leaf</span><span className="">100% Wind/Solar</span>
+                    <button
+                      type="button"
+                      onClick={() => setConnectorType('All')}
+                      className={`flex items-center gap-1.5 px-4 py-1 rounded-full font-label-ui text-xs font-medium transition-all ${
+                        connectorType === 'All' ? 'bg-[#181A19] text-[#FAF8F5]' : 'text-[#595C59] hover:bg-[#F5F2EB]'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[16px]">bolt</span><span>All connectors</span>
                     </button>
                   </div>
                 </div>
@@ -136,7 +157,7 @@ export default function CoPilotDashboard({ location, setLocation, batteryPct, se
                             </span>
                           </div>
                           <h2 className="font-display text-[26px] leading-[30px] text-[#181A19] font-extrabold tracking-tight">{recommendationData.top_recommendation.station_name}</h2>
-                          <p className="font-body text-xs text-[#6E716E] mt-0.5 font-medium">{recommendationData.top_recommendation.charger_speed || '150 kW'} Ultra-Fast DC • {recommendationData.top_recommendation.available_plugs || '8'}/{recommendationData.top_recommendation.total_plugs || '10'} Plugs Free</p>
+                          <p className="font-body text-xs text-[#6E716E] mt-0.5 font-medium">{recommendationData.top_recommendation.power_kw} kW · {recommendationData.top_recommendation.charger_count} chargers · {(recommendationData.top_recommendation.connector_types || []).join(', ')}</p>
                         </div>
                         <div className="flex flex-col items-end">
                           <span className="px-3 py-1 rounded-full bg-[#181A19] text-[#FAF8F5] font-label-ui text-xs font-bold shadow-sm">Top Pick</span>
@@ -174,19 +195,31 @@ export default function CoPilotDashboard({ location, setLocation, batteryPct, se
 
       {activeTab === 'smart-station-hub' && (
         <div className="pt-20">
-          <SmartStationHub />
+          <SmartStationHub
+            recommendationData={recommendationData}
+            loading={loading}
+            batteryPct={batteryPct}
+            targetSoc={targetSoc}
+            userVehicle={userVehicle}
+          />
         </div>
       )}
 
       {activeTab === 'queue-predictor' && (
         <div className="pt-20">
-          <QueuePredictor />
+          <QueuePredictor
+            recommendationData={recommendationData}
+            loading={loading}
+            batteryPct={batteryPct}
+            targetSoc={targetSoc}
+            userVehicle={userVehicle}
+          />
         </div>
       )}
 
       {activeTab === 'driver-auth' && (
         <div className="pt-20">
-          <DriverAuth />
+          <DriverAuth userVehicle={userVehicle} batteryPct={batteryPct} targetSoc={targetSoc} />
         </div>
       )}
 
@@ -194,7 +227,9 @@ export default function CoPilotDashboard({ location, setLocation, batteryPct, se
         <div className="w-full px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-[#10B981] animate-ping"></span>
-            <span className="font-label-ui text-xs text-[#6E716E] font-medium">AI Fleet Telemetry Connected • Real-time Matrix v2.4</span>
+            <span className="font-label-ui text-xs text-[#6E716E] font-medium">
+              {recommendationData ? `${recommendationData.reachable_count} reachable of ${recommendationData.total_found} stations` : 'Connecting to station network…'}
+            </span>
           </div>
           <div className="font-body text-xs text-[#9E9B93]">© 2024 IntelliCharge Autonomous Network. All rights reserved.</div>
         </div>

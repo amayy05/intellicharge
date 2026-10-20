@@ -11,6 +11,10 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
+# Known-weak default — must never reach production
+_WEAK_SECRET = "intellicharge-secret-key-super-secure-token-2025"
+_ENV = os.getenv("APP_ENV", "development").lower()
+
 
 class Settings(BaseModel):
     PROJECT_NAME: str = "IntelliCharge API"
@@ -30,7 +34,7 @@ class Settings(BaseModel):
     # Ranking Weights
     WEIGHT_WAIT_TIME: float = 0.50     # Priority on avoiding queue delays
     WEIGHT_TRAVEL_TIME: float = 0.35   # Priority on distance/transit ETA
-    WEIGHT_CHARGER_CAPACITY: float = 0.15 # Priority on larger multi-charger hubs
+    WEIGHT_CHARGER_CAPACITY: float = 0.15  # Priority on larger multi-charger hubs
 
     # LLM Settings (optional API key; if empty, graceful rule-based agent is used)
     LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "openai")  # openai / anthropic / gemini / mock
@@ -38,12 +42,25 @@ class Settings(BaseModel):
     LLM_MODEL: str = os.getenv("LLM_MODEL", "gpt-4o-mini")
 
     # JWT Authentication Settings
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "intellicharge-secret-key-super-secure-token-2025")
+    SECRET_KEY: str = os.getenv("SECRET_KEY", _WEAK_SECRET)
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+
+    # CORS — comma-separated list of allowed origins; defaults to local dev servers
+    ALLOWED_ORIGINS: str = os.getenv(
+        "ALLOWED_ORIGINS",
+        "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173"
+    )
 
     # Google Maps API Settings
     GOOGLE_MAPS_API_KEY: str = os.getenv("GOOGLE_MAPS_API_KEY", "")
 
 
 settings = Settings()
+
+# P0 security gate: refuse to start with the weak known secret in production
+if _ENV == "production" and settings.SECRET_KEY == _WEAK_SECRET:
+    raise RuntimeError(
+        "STARTUP ABORTED: SECRET_KEY is the known insecure default. "
+        "Set a strong, randomly-generated SECRET_KEY environment variable before deploying."
+    )
