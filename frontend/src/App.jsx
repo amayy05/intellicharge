@@ -27,6 +27,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [userVehicle, setUserVehicle] = useState(null);
+  const [userVehicles, setUserVehicles] = useState([]);
 
   // Sync vehicle profile if user has one saved on backend
   useEffect(() => {
@@ -34,6 +35,7 @@ export default function App() {
       try {
         const vehicles = await fetchUserVehicles();
         if (vehicles && vehicles.length > 0) {
+          setUserVehicles(vehicles);
           setUserVehicle(vehicles[vehicles.length - 1]);
         }
       } catch (err) {
@@ -91,6 +93,7 @@ export default function App() {
         onSearch={loadRecommendations}
         loading={loading}
         userVehicle={userVehicle}
+        userVehicles={userVehicles}
       />
     </>
   );

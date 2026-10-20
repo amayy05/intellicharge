@@ -139,10 +139,10 @@ export async function fetchUserVehicles() {
   return res.json();
 }
 
-/* ---------------- Smart Queue Endpoints ---------------- */
+/* ---------------- Smart Virtual Queue Endpoints ---------------- */
 
-export async function joinQueue(stationId, vehicleId, currentSoc, targetSoc) {
-  const res = await fetch(`${API_BASE}/api/stations/${stationId}/queue/join`, {
+export async function planQueueArrival(stationId, vehicleId, currentSoc, targetSoc, expectedArrivalAt) {
+  const res = await fetch(`${API_BASE}/api/stations/${stationId}/queue/plan`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -151,9 +151,79 @@ export async function joinQueue(stationId, vehicleId, currentSoc, targetSoc) {
     body: JSON.stringify({
       vehicle_id: vehicleId,
       current_soc: currentSoc,
-      target_soc: targetSoc
+      target_soc: targetSoc,
+      expected_arrival_at: expectedArrivalAt,
     }),
   });
-  if (!res.ok) throw new Error(`Error joining queue: ${res.statusText}`);
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.detail || `Error planning arrival: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function joinQueue(stationId, vehicleId, currentSoc, targetSoc, expectedArrivalAt = null) {
+  const body = {
+    vehicle_id: vehicleId,
+    current_soc: currentSoc,
+    target_soc: targetSoc,
+  };
+  if (expectedArrivalAt) body.expected_arrival_at = expectedArrivalAt;
+
+  const res = await fetch(`${API_BASE}/api/stations/${stationId}/queue/join`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.detail || `Error joining queue: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function checkInQueue(stationId, entryId) {
+  const res = await fetch(`${API_BASE}/api/stations/${stationId}/queue/${entryId}/check-in`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.detail || `Error checking in: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function cancelQueueRequest(stationId, entryId) {
+  const res = await fetch(`${API_BASE}/api/stations/${stationId}/queue/${entryId}/leave`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.detail || `Error cancelling request: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function fetchMyQueueRequests(stationId = null) {
+  const url = stationId
+    ? `${API_BASE}/api/stations/${stationId}/queue/my-requests`
+    : `${API_BASE}/api/stations/queue/my-requests`;
+  const res = await fetch(url, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
+  if (!res.ok) return [];
   return res.json();
 }

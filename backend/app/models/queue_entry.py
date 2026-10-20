@@ -19,10 +19,16 @@ class QueueEntry(Base):
     session_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Optional link to the actual session if assigned
 
     joined_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    expected_arrival_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    checked_in_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    current_soc: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    target_soc: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     estimated_duration_minutes: Mapped[float] = mapped_column(Float, nullable=False)
     estimated_start_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     estimated_end_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
-    status: Mapped[str] = mapped_column(String, nullable=False, default="WAITING")  # WAITING, ASSIGNED, CHARGING, COMPLETED, CANCELLED, EXPIRED
+    status: Mapped[str] = mapped_column(String, nullable=False, default="WAITING")  # PLANNED, WAITING, ASSIGNED, CHARGING, COMPLETED, CANCELLED, EXPIRED
     priority: Mapped[int] = mapped_column(Integer, default=0)

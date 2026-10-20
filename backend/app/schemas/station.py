@@ -35,6 +35,14 @@ class StationWaitPrediction(BaseModel):
     status_text: str
     # "model" = trained ML inference; "heuristic" = time-of-day estimate (no false accuracy %)
     confidence_source: str = "heuristic"
+    prediction_source: str = "heuristic"
+    waiting_vehicles: int = 0
+    planned_requests: int = 0
+    operator_verified: bool = False
+    disclaimer: str = (
+        "Virtual estimate only — this does not reserve a physical charger. "
+        "Station availability is not confirmed by the operator."
+    )
     model_config = ConfigDict(from_attributes=True)
 
 

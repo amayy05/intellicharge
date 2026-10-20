@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { fetchStationQueue, joinQueue } from '../services/api';
+import { fetchStationQueue } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import VirtualQueueModal from './VirtualQueueModal';
 import {
   amenityChips,
   buildBayMatrix,
@@ -15,6 +16,7 @@ export default function SmartStationHub({
   batteryPct = 42,
   targetSoc = 80,
   userVehicle,
+  userVehicles = [],
 }) {
   const { isAuthenticated, openLoginModal } = useAuth();
   const [query, setQuery] = useState('');
@@ -22,7 +24,7 @@ export default function SmartStationHub({
   const [sortMode, setSortMode] = useState('fastest');
   const [queues, setQueues] = useState({});
   const [syncAge, setSyncAge] = useState(0);
-  const [joinState, setJoinState] = useState({});
+  const [queueModalStation, setQueueModalStation] = useState(null);
 
   const ranked = recommendationData?.ranked_stations || [];
 
@@ -186,7 +188,7 @@ export default function SmartStationHub({
               Smart Station Hub
             </h1>
             <p className="text-body-lg font-body font-medium text-[#6E716E] max-w-2xl mt-1">
-              Real-time directory from OpenChargeMap plus live queue occupancy and predicted wait times.
+              Software-only virtual queue coordination and wait-time predictions.
             </p>
           </div>
           <div className="flex items-center gap-2 text-label-md font-label-ui font-bold text-[#6E716E] bg-[#F5F2EB] px-3.5 py-1.5 rounded-full border border-[#E8E4DC]">
@@ -194,6 +196,16 @@ export default function SmartStationHub({
             <span>
               Last sync: <span className="text-[#10B981] font-mono">{syncAge}s ago</span>
             </span>
+          </div>
+        </div>
+
+        {/* Mandatory Transparency Notice */}
+        <div className="mt-4 p-3.5 rounded-2xl bg-amber-50/90 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
+          <span className="material-symbols-outlined text-amber-600 text-lg shrink-0 mt-0.5">info</span>
+          <div>
+            <strong className="font-semibold block mb-0.5">Virtual Queue & Wait-Time Estimation Notice</strong>
+            Virtual estimate only — this does not reserve a physical charger. Station availability is not confirmed by the operator.
+            Requests are self-reported and coordinated via our virtual queue engine.
           </div>
         </div>
       </div>
@@ -282,8 +294,7 @@ export default function SmartStationHub({
         <FeaturedStation
           station={featured}
           queue={queues[featured.station_id]}
-          joinState={joinState[featured.station_id]}
-          onJoin={() => handleJoin(featured)}
+          onPlanOrJoin={() => setQueueModalStation(featured)}
         />
       )}
 
@@ -293,27 +304,23 @@ export default function SmartStationHub({
             key={station.station_id}
             station={station}
             queue={queues[station.station_id]}
-            joinState={joinState[station.station_id]}
-            onJoin={() => handleJoin(station)}
+            onPlanOrJoin={() => setQueueModalStation(station)}
           />
         ))}
       </div>
 
-      {userVehicle && featured && (
-        <div className="bg-[#FFFFFF] shadow-sm border border-[#E8E4DC] rounded-3xl p-6 md:p-8 mb-12">
-          <div className="inline-flex items-center gap-1.5 text-label-sm font-label-ui uppercase tracking-wider font-bold text-[#10B981] font-mono">
-            <span className="material-symbols-outlined text-sm">psychology</span> Co-pilot suggestion
-          </div>
-          <h3 className="text-headline-md font-display font-extrabold text-[#181A19] mt-1">
-            Hold a bay at {featured.station_name}?
-          </h3>
-          <p className="text-body-md text-[#6E716E] max-w-xl mt-1">
-            Your {userVehicle.model_name} is at {batteryPct}% SoC (~{Math.round(recommendationData?.estimated_range_km || 0)} km).
-            This station is {featured.breakdown.road_distance_km} km away with a predicted wait of{' '}
-            {formatWait(featured.breakdown.predicted_wait_minutes)} and {featured.power_kw} kW chargers.
-          </p>
-        </div>
-      )}
+      <VirtualQueueModal
+        isOpen={Boolean(queueModalStation)}
+        onClose={() => setQueueModalStation(null)}
+        station={queueModalStation}
+        userVehicle={userVehicle}
+        userVehicles={userVehicles}
+        batteryPct={batteryPct}
+        defaultTargetSoc={targetSoc}
+        onQueueUpdated={(stationId, updatedQueue) => {
+          setQueues((prev) => ({ ...prev, [stationId]: updatedQueue }));
+        }}
+      />
     </main>
   );
 }
@@ -346,7 +353,7 @@ function KpiCard({ title, icon, value, suffix, bar, footer, sub, accent }) {
   );
 }
 
-function FeaturedStation({ station, queue, joinState, onJoin }) {
+function FeaturedStation({ station, queue, onPlanOrJoin }) {
   const wait = station.breakdown?.predicted_wait_minutes;
   const { bays, free, total } = buildBayMatrix(station.charger_count, {
     ...queue,
@@ -382,13 +389,13 @@ function FeaturedStation({ station, queue, joinState, onJoin }) {
         </div>
         <div className="flex lg:flex-col items-center lg:items-end justify-between lg:justify-start gap-1 bg-[#F5F2EB] px-4 py-3 rounded-2xl border border-[#E8E4DC] min-w-[190px]">
           <span className="text-label-sm font-label-ui uppercase tracking-wider font-bold text-[#9E9B93]">
-            Live occupancy
+            Virtual queue status
           </span>
           <div className="flex items-baseline gap-1.5">
             <span className="text-headline-md font-display font-extrabold text-[#10B981]">
               {free} of {total}
             </span>
-            <span className="text-body-sm text-[#6E716E]">bays free</span>
+            <span className="text-body-sm text-[#6E716E]">bays estimated free</span>
           </div>
           <span className="text-label-sm font-label-ui uppercase tracking-wider font-bold text-[#10B981]">
             {util.text} · {station.power_kw} kW
@@ -399,7 +406,7 @@ function FeaturedStation({ station, queue, joinState, onJoin }) {
       {bays.length > 0 && (
         <div className="mb-6">
           <div className="flex items-center justify-between mb-3 text-label-sm font-label-ui uppercase tracking-wider font-bold text-[#9E9B93]">
-            <span>Bay occupancy (from live queue)</span>
+            <span>Simulated stall status (virtual queue)</span>
             <span className="flex items-center gap-3">
               <span className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded bg-[#10B981]"></span> Available
@@ -474,21 +481,19 @@ function FeaturedStation({ station, queue, joinState, onJoin }) {
           </a>
           <button
             type="button"
-            onClick={onJoin}
-            disabled={joinState?.loading || joinState?.ok}
-            className="px-6 py-2.5 rounded-full bg-[#E8F5E9] text-[#181A19] font-label-ui font-bold text-label-md flex items-center gap-2 disabled:opacity-60"
+            onClick={onPlanOrJoin}
+            className="px-6 py-2.5 rounded-full bg-[#E8F5E9] text-[#181A19] hover:bg-[#c8e6c9] font-label-ui font-bold text-label-md flex items-center gap-2 transition-colors"
           >
-            <span className="material-symbols-outlined text-base">lock</span>
-            {joinState?.ok || (joinState?.loading ? 'Joining…' : 'Join virtual queue')}
+            <span className="material-symbols-outlined text-base">schedule</span>
+            Plan / Join virtual queue
           </button>
         </div>
       </div>
-      {joinState?.error && <p className="text-red-500 text-sm mt-3">{joinState.error}</p>}
     </div>
   );
 }
 
-function StationMiniCard({ station, queue, joinState, onJoin }) {
+function StationMiniCard({ station, queue, onPlanOrJoin }) {
   const wait = station.breakdown?.predicted_wait_minutes || 0;
   const free = queue?.available_chargers ?? station.charger_count;
   const total = queue?.total_chargers ?? station.charger_count;
@@ -521,7 +526,7 @@ function StationMiniCard({ station, queue, joinState, onJoin }) {
         </p>
         <div className="my-5 p-3.5 rounded-2xl bg-[#F5F2EB] border border-[#E8E4DC] space-y-2">
           <div className="flex items-center justify-between text-body-sm">
-            <span className="text-[#9E9B93]">Free chargers</span>
+            <span className="text-[#9E9B93]">Est. free chargers</span>
             <span className={`font-bold font-mono ${busy ? 'text-red-500' : 'text-[#10B981]'}`}>
               {free} of {total} bays
             </span>
@@ -547,14 +552,12 @@ function StationMiniCard({ station, queue, joinState, onJoin }) {
       </div>
       <button
         type="button"
-        onClick={onJoin}
-        disabled={joinState?.loading || joinState?.ok}
-        className="w-full py-2.5 rounded-full bg-[#E8F5E9] text-[#181A19] font-label-ui font-bold text-label-md flex items-center justify-center gap-1.5 disabled:opacity-60"
+        onClick={onPlanOrJoin}
+        className="w-full py-2.5 rounded-full bg-[#E8F5E9] text-[#181A19] hover:bg-[#c8e6c9] font-label-ui font-bold text-label-md flex items-center justify-center gap-1.5 transition-colors"
       >
-        <span className="material-symbols-outlined text-sm">bolt</span>
-        {joinState?.ok || (joinState?.loading ? 'Joining…' : busy ? 'Join virtual queue' : 'Reserve bay')}
+        <span className="material-symbols-outlined text-sm">schedule</span>
+        Plan / Join virtual queue
       </button>
-      {joinState?.error && <p className="text-red-500 text-xs mt-2">{joinState.error}</p>}
     </div>
   );
 }

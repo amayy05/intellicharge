@@ -118,7 +118,66 @@ def predict_station_wait(
         station_name=st.name,
     )
 
-    return StationWaitPrediction(**pred_res)
+    from app.services.queue_engine import get_station_queue_status, estimate_queue_wait_time
+    from app.schemas.queue import DISCLAIMER_TEXT
+
+    queue_status = get_station_queue_status(db, station_id)
+    now = datetime.now()
+    is_immediate = abs((arrival_dt - now).total_seconds()) <= 300  # within 5 mins
+
+    if is_immediate:
+        if queue_status["waiting_vehicles"] > 0 or queue_status["active_sessions"] > 0:
+            final_wait = float(queue_status["estimated_wait_minutes"])
+            source = "virtual_queue"
+        else:
+            final_wait = float(pred_res["predicted_wait_minutes"])
+            source = pred_res.get("confidence_source", "heuristic")
+    else:
+        # Future arrival: evaluate historical forecast and scheduled planned demand
+        future_queue_wait, _ = estimate_queue_wait_time(db, station_id, 30.0, arrival_time=arrival_dt)
+        ml_wait = float(pred_res["predicted_wait_minutes"])
+        if queue_status["planned_requests"] > 0 and future_queue_wait > ml_wait:
+            final_wait = future_queue_wait
+            source = "hybrid_forecast"
+        else:
+            final_wait = ml_wait
+            source = pred_res.get("confidence_source", "heuristic")
+
+    final_wait = max(0.0, round(final_wait, 1))
+
+    # Recalculate congestion classification
+    if final_wait <= 5.0:
+        congestion_level = "Low"
+        color_code = "green"
+        status_text = "Available / Immediate"
+    elif final_wait <= 15.0:
+        congestion_level = "Moderate"
+        color_code = "amber"
+        status_text = "Minor queue"
+    elif final_wait <= 30.0:
+        congestion_level = "High"
+        color_code = "orange"
+        status_text = "Moderate queue"
+    else:
+        congestion_level = "Critical"
+        color_code = "red"
+        status_text = "Heavy queue / Congested"
+
+    return StationWaitPrediction(
+        station_id=station_id,
+        station_name=st.name,
+        arrival_time=arrival_dt.isoformat(),
+        predicted_wait_minutes=final_wait,
+        congestion_level=congestion_level,
+        color_code=color_code,
+        status_text=status_text,
+        confidence_source=pred_res.get("confidence_source", "heuristic"),
+        prediction_source=source,
+        waiting_vehicles=queue_status["waiting_vehicles"],
+        planned_requests=queue_status["planned_requests"],
+        operator_verified=False,
+        disclaimer=DISCLAIMER_TEXT,
+    )
 
 
 @router.get("/{station_id}/forecast-24h", response_model=Station24hForecast)

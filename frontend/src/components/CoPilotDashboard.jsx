@@ -9,7 +9,7 @@ import StationList from "./StationList";
 import { useAuth } from "../context/AuthContext";
 import { estimatedRangeKm } from "../utils/stationDisplay";
 
-export default function CoPilotDashboard({ location, setLocation, batteryPct, setBatteryPct, targetSoc, setTargetSoc, connectorType, setConnectorType, radiusKm, setRadiusKm, recommendationData, onSearch, loading, userVehicle }) {
+export default function CoPilotDashboard({ location, setLocation, batteryPct, setBatteryPct, targetSoc, setTargetSoc, connectorType, setConnectorType, radiusKm, setRadiusKm, recommendationData, onSearch, loading, userVehicle, userVehicles = [] }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedStation, setSelectedStation] = useState(null);
   const { isAuthenticated, user, openLoginModal } = useAuth();
@@ -201,6 +201,7 @@ export default function CoPilotDashboard({ location, setLocation, batteryPct, se
             batteryPct={batteryPct}
             targetSoc={targetSoc}
             userVehicle={userVehicle}
+            userVehicles={userVehicles}
           />
         </div>
       )}
@@ -213,6 +214,7 @@ export default function CoPilotDashboard({ location, setLocation, batteryPct, se
             batteryPct={batteryPct}
             targetSoc={targetSoc}
             userVehicle={userVehicle}
+            userVehicles={userVehicles}
           />
         </div>
       )}

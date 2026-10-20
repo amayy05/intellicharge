@@ -1,76 +1,186 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import datetime, timedelta, timezone
+from typing import Optional, List, Tuple
 
 from app.core.database import get_db
 from app.models.queue_entry import QueueEntry
 from app.models.vehicle import EVVehicle
 from app.models.user import User
-from app.schemas.queue import QueueJoinRequest, QueueJoinResponse, QueueStatusResponse
-from app.services.queue_engine import get_station_queue_status, estimate_queue_wait_time, recalculate_queue
-from app.services.charging_math import calculate_charging_duration_minutes
+from app.models.station import Station
+from app.models.session import ChargingSession
+from app.schemas.queue import (
+    QueueJoinRequest,
+    QueuePlanRequest,
+    QueueJoinResponse,
+    QueueStatusResponse,
+    QueueEntryDetailResponse,
+    DISCLAIMER_TEXT,
+)
+from app.services.queue_engine import (
+    get_station_queue_status,
+    estimate_queue_wait_time,
+    recalculate_queue,
+    to_utc,
+    clean_expired_entries,
+)
+from app.services.charging_math import (
+    calculate_charging_duration_minutes,
+    check_connector_compatibility,
+)
 from app.services.simulator import advance_time
-from app.api.deps import get_current_user, get_optional_current_user
+from app.api.deps import get_optional_current_user, get_current_user
+from app.api.vehicles import get_or_create_demo_user
 
 router = APIRouter(prefix="/stations", tags=["Queue"])
 
 
-@router.get("/{station_id}/queue", response_model=QueueStatusResponse)
-def get_queue_status(station_id: str, db: Session = Depends(get_db)):
-    """Public endpoint — returns aggregate queue status for a station (no personal data)."""
-    status = get_station_queue_status(db, station_id)
-    return QueueStatusResponse(station_id=station_id, **status)
+def _resolve_user(db: Session, current_user: Optional[User]) -> Tuple[User, bool]:
+    """
+    Returns (user, is_authenticated).
+    When a valid JWT token was provided, is_authenticated is True.
+    Otherwise falls back to demo user with is_authenticated=False.
+    """
+    if current_user:
+        return current_user, True
+    return get_or_create_demo_user(db), False
 
 
-@router.post("/{station_id}/queue/join", response_model=QueueJoinResponse)
-def join_queue(
-    station_id: str,
-    request: QueueJoinRequest,
+@router.get("/queue/my-requests", response_model=List[QueueEntryDetailResponse])
+def get_all_my_queue_requests(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_current_user),
 ):
-    """Join a station queue. Requires authentication. Vehicle must belong to current user."""
-    # 1. Get vehicle details — enforce ownership so user A cannot queue with user B's vehicle
-    vehicle = db.query(EVVehicle).filter(
-        EVVehicle.id == request.vehicle_id,
-        EVVehicle.user_id == current_user.id,
-    ).first()
-    if not vehicle:
-        raise HTTPException(
-            status_code=404,
-            detail="Vehicle not found or does not belong to your account.",
-        )
+    """Retrieve all active/recent requests for the current driver."""
+    user, _ = _resolve_user(db, current_user)
+    entries = db.query(QueueEntry).filter(
+        QueueEntry.user_id == user.id,
+        QueueEntry.status.in_(["PLANNED", "WAITING", "ASSIGNED", "CHARGING"]),
+    ).order_by(QueueEntry.joined_at.desc()).all()
+    return entries
 
-    # Validate SoC inputs
-    if not (0 <= request.current_soc <= 100) or not (0 < request.target_soc <= 100):
-        raise HTTPException(status_code=422, detail="SoC values must be between 0 and 100.")
-    if request.current_soc >= request.target_soc:
-        raise HTTPException(status_code=422, detail="target_soc must be greater than current_soc.")
 
-    # 2. Calculate duration — use station's actual power rating where available
-    from app.models.station import Station
+@router.get("/{station_id}/queue/my-requests", response_model=List[QueueEntryDetailResponse])
+def get_my_station_queue_requests(
+    station_id: str,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_current_user),
+):
+    """Retrieve active requests for the current driver at a specific station."""
     station = db.query(Station).filter(Station.id == station_id).first()
     if not station:
-        raise HTTPException(status_code=404, detail="Station not found.")
-    charger_power_kw = station.power_kw or 50.0
+        raise HTTPException(status_code=404, detail=f"Station '{station_id}' not found.")
 
+    user, _ = _resolve_user(db, current_user)
+    entries = db.query(QueueEntry).filter(
+        QueueEntry.station_id == station_id,
+        QueueEntry.user_id == user.id,
+        QueueEntry.status.in_(["PLANNED", "WAITING", "ASSIGNED", "CHARGING"]),
+    ).order_by(QueueEntry.joined_at.desc()).all()
+    return entries
+
+
+@router.get("/{station_id}/queue", response_model=QueueStatusResponse)
+def get_queue_status(station_id: str, db: Session = Depends(get_db)):
+    """
+    Public endpoint — returns aggregate queue status for a station.
+    Separates active sessions, checked-in virtual queue waiting count,
+    and planned arrival requests. Never leaks PII.
+    """
+    station = db.query(Station).filter(Station.id == station_id).first()
+    if not station:
+        raise HTTPException(status_code=404, detail=f"Station '{station_id}' not found.")
+
+    status_data = get_station_queue_status(db, station_id)
+    return QueueStatusResponse(**status_data)
+
+
+@router.post("/{station_id}/queue/plan", response_model=QueueJoinResponse)
+def plan_queue_arrival(
+    station_id: str,
+    request: QueuePlanRequest,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_current_user),
+):
+    """
+    Create a planned virtual queue request for an expected arrival time.
+    PLANNED requests are included in future demand forecasting but NOT
+    counted as physically waiting and NOT assigned a real charger.
+    """
+    # 1. Validate station existence
+    station = db.query(Station).filter(Station.id == station_id).first()
+    if not station:
+        raise HTTPException(status_code=404, detail=f"Station '{station_id}' not found.")
+
+    # 2. Resolve user & vehicle ownership
+    user, is_auth = _resolve_user(db, current_user)
+    vehicle = db.query(EVVehicle).filter(EVVehicle.id == request.vehicle_id).first()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found.")
+    if is_auth and vehicle.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Vehicle does not belong to your account.")
+
+    # 3. Validate battery & SOC inputs
+    if not (0 <= request.current_soc <= 100) or not (0 <= request.target_soc <= 100):
+        raise HTTPException(status_code=422, detail="SoC values must be between 0 and 100.")
+    if request.target_soc <= request.current_soc:
+        raise HTTPException(status_code=422, detail="target_soc must be strictly greater than current_soc.")
+    if vehicle.battery_capacity_kwh <= 0 or vehicle.max_charging_power_kw <= 0:
+        raise HTTPException(status_code=422, detail="Vehicle battery capacity and power must be positive.")
+
+    # 4. Check connector compatibility
+    is_compatible, comp_label = check_connector_compatibility(station.connector_types, vehicle.connector_type)
+    if not is_compatible:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Connector incompatibility: Vehicle requires '{vehicle.connector_type}', "
+                f"but station '{station.name}' only provides '{station.connector_types}'."
+            )
+        )
+
+    # 5. Validate expected arrival timestamp
+    now = datetime.now(timezone.utc)
+    expected_arr = to_utc(request.expected_arrival_at) if request.expected_arrival_at else (now + timedelta(minutes=30))
+    if expected_arr < (now - timedelta(minutes=15)):
+        raise HTTPException(status_code=422, detail="expected_arrival_at cannot be in the past.")
+
+    # 6. Prevent duplicate active requests for the same vehicle at this station
+    existing_active = db.query(QueueEntry).filter(
+        QueueEntry.station_id == station_id,
+        QueueEntry.vehicle_id == vehicle.id,
+        QueueEntry.status.in_(["PLANNED", "WAITING", "CHARGING"]),
+    ).first()
+    if existing_active:
+        raise HTTPException(
+            status_code=409,
+            detail=f"An active request ({existing_active.status}) already exists for this vehicle at this station.",
+        )
+
+    # 7. Calculate charging duration using station actual power rating
     duration = calculate_charging_duration_minutes(
         battery_capacity_kwh=vehicle.battery_capacity_kwh,
         current_soc=request.current_soc,
         target_soc=request.target_soc,
         vehicle_max_power_kw=vehicle.max_charging_power_kw,
-        charger_power_kw=charger_power_kw,
+        charger_power_kw=station.power_kw or 50.0,
     )
 
-    # 3. Get wait time
-    wait_time, start_time = estimate_queue_wait_time(db, station_id, duration)
+    # 8. Estimate wait time at target arrival
+    wait_time, start_time = estimate_queue_wait_time(db, station_id, duration, arrival_time=expected_arr)
 
-    # 4. Create Queue Entry — store user_id for ownership tracking
+    # 9. Create PLANNED entry
+    expires_at = expected_arr + timedelta(minutes=30)
     entry = QueueEntry(
         station_id=station_id,
         vehicle_id=vehicle.id,
-        user_id=current_user.id,
+        user_id=user.id,
+        status="PLANNED",
+        joined_at=now,
+        expected_arrival_at=expected_arr,
+        expires_at=expires_at,
+        current_soc=request.current_soc,
+        target_soc=request.target_soc,
         estimated_duration_minutes=duration,
         estimated_start_at=start_time,
         estimated_end_at=start_time + timedelta(minutes=duration),
@@ -79,50 +189,282 @@ def join_queue(
     db.commit()
     db.refresh(entry)
 
-    # Recalculate positions for all waiting vehicles
-    recalculate_queue(db, station_id)
+    return QueueJoinResponse(
+        status="success",
+        queue_entry_id=entry.id,
+        station_id=station_id,
+        vehicle_id=vehicle.id,
+        entry_status="PLANNED",
+        estimated_duration_minutes=duration,
+        estimated_wait_minutes=wait_time,
+        estimated_start_time=start_time,
+        expected_arrival_at=expected_arr,
+        checked_in_at=None,
+        prediction_source="planned_demand",
+        operator_verified=False,
+        disclaimer=DISCLAIMER_TEXT,
+    )
+
+
+@router.post("/{station_id}/queue/join", response_model=QueueJoinResponse)
+def join_queue(
+    station_id: str,
+    request: QueueJoinRequest,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_current_user),
+):
+    """
+    Join a station's virtual queue (immediate check-in upon arrival)
+    or create a planned request if arrival is in the future.
+    Maintains backward compatibility for existing clients.
+    """
+    # 1. Validate station existence
+    station = db.query(Station).filter(Station.id == station_id).first()
+    if not station:
+        raise HTTPException(status_code=404, detail=f"Station '{station_id}' not found.")
+
+    # 2. Resolve user & vehicle ownership
+    user, is_auth = _resolve_user(db, current_user)
+    vehicle = db.query(EVVehicle).filter(EVVehicle.id == request.vehicle_id).first()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found.")
+    if is_auth and vehicle.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Vehicle does not belong to your account.")
+
+    # 3. Validate SoC & battery inputs
+    if not (0 <= request.current_soc <= 100) or not (0 <= request.target_soc <= 100):
+        raise HTTPException(status_code=422, detail="SoC values must be between 0 and 100.")
+    if request.target_soc <= request.current_soc:
+        raise HTTPException(status_code=422, detail="target_soc must be strictly greater than current_soc.")
+    if vehicle.battery_capacity_kwh <= 0 or vehicle.max_charging_power_kw <= 0:
+        raise HTTPException(status_code=422, detail="Vehicle battery capacity and power must be positive.")
+
+    # 4. Check connector compatibility
+    is_compatible, comp_label = check_connector_compatibility(station.connector_types, vehicle.connector_type)
+    if not is_compatible:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Connector incompatibility: Vehicle requires '{vehicle.connector_type}', "
+                f"but station '{station.name}' only provides '{station.connector_types}'."
+            )
+        )
+
+    # 5. Check duplicate active requests
+    existing_active = db.query(QueueEntry).filter(
+        QueueEntry.station_id == station_id,
+        QueueEntry.vehicle_id == vehicle.id,
+        QueueEntry.status.in_(["PLANNED", "WAITING", "CHARGING"]),
+    ).first()
+    if existing_active:
+        raise HTTPException(
+            status_code=409,
+            detail=f"An active request ({existing_active.status}) already exists for this vehicle at this station.",
+        )
+
+    now = datetime.now(timezone.utc)
+    target_arrival = to_utc(request.expected_arrival_at) if request.expected_arrival_at else now
+
+    # If expected_arrival is significantly in future (> 5 min), treat as PLANNED
+    is_future_plan = target_arrival > (now + timedelta(minutes=5))
+
+    duration = calculate_charging_duration_minutes(
+        battery_capacity_kwh=vehicle.battery_capacity_kwh,
+        current_soc=request.current_soc,
+        target_soc=request.target_soc,
+        vehicle_max_power_kw=vehicle.max_charging_power_kw,
+        charger_power_kw=station.power_kw or 50.0,
+    )
+
+    wait_time, start_time = estimate_queue_wait_time(db, station_id, duration, arrival_time=target_arrival)
+
+    entry_status = "PLANNED" if is_future_plan else "WAITING"
+    checked_in_at = None if is_future_plan else now
+    expires_at = (target_arrival + timedelta(minutes=30)) if is_future_plan else None
+
+    entry = QueueEntry(
+        station_id=station_id,
+        vehicle_id=vehicle.id,
+        user_id=user.id,
+        status=entry_status,
+        joined_at=now,
+        expected_arrival_at=target_arrival if is_future_plan else None,
+        checked_in_at=checked_in_at,
+        expires_at=expires_at,
+        current_soc=request.current_soc,
+        target_soc=request.target_soc,
+        estimated_duration_minutes=duration,
+        estimated_start_at=start_time,
+        estimated_end_at=start_time + timedelta(minutes=duration),
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+
+    if not is_future_plan:
+        recalculate_queue(db, station_id)
 
     return QueueJoinResponse(
         status="success",
         queue_entry_id=entry.id,
+        station_id=station_id,
+        vehicle_id=vehicle.id,
+        entry_status=entry_status,
         estimated_duration_minutes=duration,
         estimated_wait_minutes=wait_time,
         estimated_start_time=start_time,
+        expected_arrival_at=target_arrival if is_future_plan else None,
+        checked_in_at=checked_in_at,
+        prediction_source="planned_demand" if is_future_plan else "virtual_queue",
+        operator_verified=False,
+        disclaimer=DISCLAIMER_TEXT,
+    )
+
+
+@router.post("/{station_id}/queue/{entry_id}/check-in", response_model=QueueJoinResponse)
+def check_in_to_queue(
+    station_id: str,
+    entry_id: int,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_current_user),
+):
+    """
+    Check in to an existing planned request upon physical arrival at the station,
+    moving it into that station's checked-in virtual queue.
+    Idempotent: duplicate check-ins return current status safely.
+    """
+    station = db.query(Station).filter(Station.id == station_id).first()
+    if not station:
+        raise HTTPException(status_code=404, detail=f"Station '{station_id}' not found.")
+
+    entry = db.query(QueueEntry).filter(QueueEntry.id == entry_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Queue entry not found.")
+
+    # Station isolation check: ensure entry belongs to path station
+    if entry.station_id != station_id:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Queue entry {entry_id} belongs to station '{entry.station_id}', not '{station_id}'."
+        )
+
+    # Ownership check
+    user, is_auth = _resolve_user(db, current_user)
+    if is_auth and entry.user_id != user.id:
+        raise HTTPException(status_code=403, detail="You do not have permission to check in this queue entry.")
+
+    # Idempotent handling if already WAITING or CHARGING
+    if entry.status in ("WAITING", "CHARGING"):
+        wait_time, start_time = estimate_queue_wait_time(db, station_id, entry.estimated_duration_minutes)
+        return QueueJoinResponse(
+            status="success",
+            queue_entry_id=entry.id,
+            station_id=station_id,
+            vehicle_id=entry.vehicle_id,
+            entry_status=entry.status,
+            estimated_duration_minutes=entry.estimated_duration_minutes,
+            estimated_wait_minutes=wait_time,
+            estimated_start_time=entry.estimated_start_at or start_time,
+            expected_arrival_at=entry.expected_arrival_at,
+            checked_in_at=entry.checked_in_at,
+            prediction_source="virtual_queue",
+            operator_verified=False,
+            disclaimer=DISCLAIMER_TEXT,
+        )
+
+    if entry.status in ("COMPLETED", "CANCELLED", "EXPIRED"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot check in entry with terminal status '{entry.status}'."
+        )
+
+    # Transition PLANNED -> WAITING
+    now = datetime.now(timezone.utc)
+    entry.status = "WAITING"
+    entry.checked_in_at = now
+    db.commit()
+
+    # Recalculate virtual queue for this station
+    recalculate_queue(db, station_id)
+    db.refresh(entry)
+
+    wait_time, start_time = estimate_queue_wait_time(db, station_id, entry.estimated_duration_minutes)
+
+    return QueueJoinResponse(
+        status="success",
+        queue_entry_id=entry.id,
+        station_id=station_id,
+        vehicle_id=entry.vehicle_id,
+        entry_status="WAITING",
+        estimated_duration_minutes=entry.estimated_duration_minutes,
+        estimated_wait_minutes=wait_time,
+        estimated_start_time=entry.estimated_start_at or start_time,
+        expected_arrival_at=entry.expected_arrival_at,
+        checked_in_at=entry.checked_in_at,
+        prediction_source="virtual_queue",
+        operator_verified=False,
+        disclaimer=DISCLAIMER_TEXT,
     )
 
 
 @router.post("/{station_id}/queue/{entry_id}/leave")
+@router.post("/{station_id}/queue/{entry_id}/cancel")
 def leave_queue(
     station_id: str,
     entry_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_current_user),
 ):
-    """Leave/cancel a queue entry. Requires authentication. Only the entry owner can cancel."""
-    entry = db.query(QueueEntry).filter(
-        QueueEntry.id == entry_id,
-        QueueEntry.station_id == station_id,
-    ).first()
+    """
+    Leave / cancel a planned request or waiting queue entry.
+    Requires station match and ownership validation.
+    Idempotent: cancelling an already cancelled entry succeeds cleanly.
+    """
+    station = db.query(Station).filter(Station.id == station_id).first()
+    if not station:
+        raise HTTPException(status_code=404, detail=f"Station '{station_id}' not found.")
+
+    entry = db.query(QueueEntry).filter(QueueEntry.id == entry_id).first()
     if not entry:
         raise HTTPException(status_code=404, detail="Queue entry not found.")
 
-    # IDOR protection: only the owner can cancel their own entry
-    if entry.user_id != current_user.id:
+    if entry.station_id != station_id:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Queue entry {entry_id} belongs to station '{entry.station_id}', not '{station_id}'."
+        )
+
+    user, is_auth = _resolve_user(db, current_user)
+    if is_auth and entry.user_id != user.id:
         raise HTTPException(
             status_code=403,
             detail="You do not have permission to cancel this queue entry.",
         )
 
-    if entry.status not in ("WAITING", "ASSIGNED"):
+    # Idempotent cancellation
+    if entry.status == "CANCELLED":
+        return {"status": "success", "message": "Queue entry was already cancelled."}
+
+    if entry.status in ("COMPLETED", "EXPIRED"):
         raise HTTPException(
             status_code=409,
-            detail=f"Cannot cancel entry with status '{entry.status}'.",
+            detail=f"Cannot cancel entry with terminal status '{entry.status}'.",
         )
 
+    # Terminate linked simulated session if applicable
+    if entry.session_id:
+        sess = db.query(ChargingSession).filter(ChargingSession.id == entry.session_id).first()
+        if sess and sess.status == "CHARGING":
+            sess.status = "CANCELLED"
+            sess.actual_end_at = datetime.now(timezone.utc)
+
+    was_waiting = entry.status in ("WAITING", "ASSIGNED", "CHARGING")
     entry.status = "CANCELLED"
     db.commit()
 
-    recalculate_queue(db, station_id)
+    if was_waiting:
+        recalculate_queue(db, station_id)
+
     return {"status": "success", "message": "Left queue"}
 
 

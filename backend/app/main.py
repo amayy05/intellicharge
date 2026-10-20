@@ -23,6 +23,11 @@ with engine.connect() as conn:
     for migration in [
         "ALTER TABLE users ADD COLUMN name VARCHAR",
         "ALTER TABLE queue_entries ADD COLUMN user_id INTEGER",
+        "ALTER TABLE queue_entries ADD COLUMN expected_arrival_at DATETIME",
+        "ALTER TABLE queue_entries ADD COLUMN checked_in_at DATETIME",
+        "ALTER TABLE queue_entries ADD COLUMN expires_at DATETIME",
+        "ALTER TABLE queue_entries ADD COLUMN current_soc FLOAT",
+        "ALTER TABLE queue_entries ADD COLUMN target_soc FLOAT",
     ]:
         try:
             conn.execute(text(migration))

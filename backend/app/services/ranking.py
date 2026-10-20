@@ -48,10 +48,11 @@ def compute_station_recommendations(
     candidates = []
 
     for st in all_stations:
-        # Check connector type filter
+        # Check connector type filter with robust normalization
         if connector_type and connector_type.strip() and connector_type.strip().lower() != "all":
-            c_types = [c.strip().lower() for c in st.connector_types.split(",")]
-            if connector_type.strip().lower() not in c_types:
+            from app.services.charging_math import check_connector_compatibility
+            is_compat, _ = check_connector_compatibility(st.connector_types, connector_type)
+            if not is_compat:
                 continue
 
         # Compute distance & transit time
@@ -70,23 +71,31 @@ def compute_station_recommendations(
         # Estimate arrival time for wait prediction
         arrival_ts = datetime.now() + timedelta(minutes=travel_time_min)
 
-        # ML Wait-time prediction
+        # ML Wait-time prediction (historical demand at arrival hour)
         pred_res = predictor.predict(
             station_id=st.id,
             arrival_time=arrival_ts,
             charger_count=st.charger_count,
         )
-        ml_predicted_wait = pred_res["predicted_wait_minutes"]
+        ml_predicted_wait = float(pred_res["predicted_wait_minutes"])
         
-        # Current Queue prediction
-        # Assume a standard 20% to 80% charge for the queue estimate if not provided (defaulting to 35 mins)
-        est_duration = 35.0 
-        queue_predicted_wait, _ = estimate_queue_wait_time(db, st.id, est_duration)
+        # Virtual queue simulation at expected arrival (including checked-in and planned requests)
+        from app.services.queue_engine import get_station_queue_status
+        arrival_queue_wait, _ = estimate_queue_wait_time(db, st.id, 30.0, arrival_time=arrival_ts)
         
-        # Hybrid prediction (alpha = 0.7 for real-time queue, 0.3 for ML forecast)
-        alpha = 0.7
-        predicted_wait = round((alpha * queue_predicted_wait) + ((1 - alpha) * ml_predicted_wait), 1)
+        # Explainable estimate logic:
+        # If arriving soon (<= 10 mins), active queue state is primary when occupied.
+        # For future arrival, take max of historical baseline and planned queue demand to avoid double-counting.
+        if travel_time_min <= 10.0:
+            q_status = get_station_queue_status(db, st.id)
+            if q_status["waiting_vehicles"] > 0 or q_status["active_sessions"] > 0:
+                predicted_wait = float(q_status["estimated_wait_minutes"])
+            else:
+                predicted_wait = ml_predicted_wait
+        else:
+            predicted_wait = max(ml_predicted_wait, arrival_queue_wait)
         
+        predicted_wait = round(predicted_wait, 1)
         total_time = round(travel_time_min + predicted_wait, 1)
 
         # Multi-factor composite score calculation (lower is better)
