@@ -37,6 +37,9 @@ export default function App() {
         if (vehicles && vehicles.length > 0) {
           setUserVehicles(vehicles);
           setUserVehicle(vehicles[vehicles.length - 1]);
+        } else {
+          setUserVehicles([]);
+          setUserVehicle(null);
         }
       } catch (err) {
         console.warn('Could not fetch user vehicles:', err);
@@ -76,7 +79,10 @@ export default function App() {
     <>
       <AuthModal />
       {!userVehicle && (
-        <EVProfileModal onProfileSaved={(vehicle) => setUserVehicle(vehicle)} />
+        <EVProfileModal onProfileSaved={(vehicle) => {
+          setUserVehicle(vehicle);
+          setUserVehicles((prev) => (prev && prev.length > 0 ? [...prev, vehicle] : [vehicle]));
+        }} />
       )}
       <CoPilotDashboard
         location={location}

@@ -46,6 +46,28 @@ def _resolve_user(db: Session, current_user: Optional[User]) -> Tuple[User, bool
     return get_or_create_demo_user(db), False
 
 
+def _is_vehicle_accessible_by_user(vehicle: EVVehicle, user: User, is_auth: bool, db: Session) -> bool:
+    """
+    Checks if a vehicle is accessible by the user.
+    - If unauthenticated, demo/public access is permitted.
+    - If authenticated, check if the user owns the vehicle (type-safe comparison: str vs int).
+    - If the vehicle belongs to demo user or is a shared demo vehicle, allow authenticated user as fallback.
+    """
+    if not is_auth:
+        return True
+
+    # Type-safe comparison: SQLite VARCHAR column returns str, user.id is int
+    if str(vehicle.user_id) == str(user.id):
+        return True
+
+    # Check if this is a demo vehicle
+    demo_user = get_or_create_demo_user(db)
+    if str(vehicle.user_id).lower() in ("demo_user", "none", "") or str(vehicle.user_id) == str(demo_user.id):
+        return True
+
+    return False
+
+
 @router.get("/queue/my-requests", response_model=List[QueueEntryDetailResponse])
 def get_all_my_queue_requests(
     db: Session = Depends(get_db),
@@ -117,7 +139,7 @@ def plan_queue_arrival(
     vehicle = db.query(EVVehicle).filter(EVVehicle.id == request.vehicle_id).first()
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found.")
-    if is_auth and vehicle.user_id != user.id:
+    if is_auth and not _is_vehicle_accessible_by_user(vehicle, user, is_auth, db):
         raise HTTPException(status_code=403, detail="Vehicle does not belong to your account.")
 
     # 3. Validate battery & SOC inputs
@@ -228,7 +250,7 @@ def join_queue(
     vehicle = db.query(EVVehicle).filter(EVVehicle.id == request.vehicle_id).first()
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found.")
-    if is_auth and vehicle.user_id != user.id:
+    if is_auth and not _is_vehicle_accessible_by_user(vehicle, user, is_auth, db):
         raise HTTPException(status_code=403, detail="Vehicle does not belong to your account.")
 
     # 3. Validate SoC & battery inputs
@@ -350,8 +372,11 @@ def check_in_to_queue(
 
     # Ownership check
     user, is_auth = _resolve_user(db, current_user)
-    if is_auth and entry.user_id != user.id:
-        raise HTTPException(status_code=403, detail="You do not have permission to check in this queue entry.")
+    if entry.user_id is not None:
+        if not is_auth:
+            raise HTTPException(status_code=401, detail="Authentication required to check in this queue entry.")
+        if str(entry.user_id) != str(user.id):
+            raise HTTPException(status_code=403, detail="You do not have permission to check in this queue entry.")
 
     # Idempotent handling if already WAITING or CHARGING
     if entry.status in ("WAITING", "CHARGING"):
@@ -435,11 +460,17 @@ def leave_queue(
         )
 
     user, is_auth = _resolve_user(db, current_user)
-    if is_auth and entry.user_id != user.id:
-        raise HTTPException(
-            status_code=403,
-            detail="You do not have permission to cancel this queue entry.",
-        )
+    if entry.user_id is not None:
+        if not is_auth:
+            raise HTTPException(
+                status_code=401,
+                detail="Authentication required to cancel this queue entry.",
+            )
+        if str(entry.user_id) != str(user.id):
+            raise HTTPException(
+                status_code=403,
+                detail="You do not have permission to cancel this queue entry.",
+            )
 
     # Idempotent cancellation
     if entry.status == "CANCELLED":

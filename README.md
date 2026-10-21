@@ -65,9 +65,15 @@ Web dashboard will be live at: [http://localhost:5173](http://localhost:5173)
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/stations/nearby?lat=&lng=&radius_km=` | Search charging stations within radius |
-| `GET` | `/stations/{id}/predict-wait?arrival_ts=` | Predict queue wait time at arrival timestamp |
-| `GET` | `/recommend?lat=&lng=&battery_pct=` | Multi-factor battery-aware station recommendations |
-| `POST` | `/agent/query` | Conversational AI agent tool-calling reasoning query |
+| `GET` | `/api/stations/nearby?lat=&lng=&radius_km=` | Search charging stations within radius |
+| `GET` | `/api/stations/{id}/predict-wait?arrival_ts=` | Predict queue wait time at arrival timestamp |
+| `GET` | `/api/recommend?lat=&lng=&battery_pct=` | Multi-factor battery-aware station recommendations |
+| `POST` | `/api/stations/{id}/queue/plan` | Plan virtual queue arrival for expected future time |
+| `POST` | `/api/stations/{id}/queue/join` | Check in to virtual queue immediately upon physical arrival |
+| `POST` | `/api/agent/query` | Conversational AI agent tool-calling reasoning query |
 
 ---
+
+## 📚 Complete Project Guide & Documentation
+For full architectural diagrams, mathematical formulations, ML pipeline details, database ERDs, and end-to-end user journeys, see:
+👉 **[INTELLICHARGE_COMPREHENSIVE_GUIDE.md](file:///c:/Users/amayn/OneDrive/Desktop/intillichargee/INTELLICHARGE_COMPREHENSIVE_GUIDE.md)**

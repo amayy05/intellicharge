@@ -116,7 +116,8 @@ export default function VirtualQueueModal({
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    if (!selectedVehicleId) {
+    const effectiveVehicleId = selectedVehicleId || userVehicle?.id || (userVehicles.length > 0 ? userVehicles[0].id : null);
+    if (!effectiveVehicleId) {
       setErrorMsg('Please select an EV profile or create one first.');
       return;
     }
@@ -130,10 +131,10 @@ export default function VirtualQueueModal({
       const arrivalTs = computeArrivalIso();
       let res;
       if (arrivalTs) {
-        res = await planQueueArrival(stationId, selectedVehicleId, currentSoc, targetSoc, arrivalTs);
+        res = await planQueueArrival(stationId, effectiveVehicleId, currentSoc, targetSoc, arrivalTs);
         setSuccessMsg(`Planned request saved! Expected arrival: ${new Date(arrivalTs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
       } else {
-        res = await joinQueue(stationId, selectedVehicleId, currentSoc, targetSoc);
+        res = await joinQueue(stationId, effectiveVehicleId, currentSoc, targetSoc);
         setSuccessMsg(`Checked in to virtual queue! Estimated wait: ~${Math.round(res.estimated_wait_minutes)} mins`);
       }
 
@@ -380,6 +381,10 @@ export default function VirtualQueueModal({
                     </option>
                   ))}
                 </select>
+              ) : currentVehicle ? (
+                <div className="p-3 rounded-xl bg-[#F5F2EB] border border-[#E8E4DC] text-xs text-[#181A19] font-semibold flex items-center justify-between">
+                  <span>{currentVehicle.model_name} ({currentVehicle.connector_type || 'CCS2'} · {currentVehicle.battery_capacity_kwh || 40.5} kWh)</span>
+                </div>
               ) : (
                 <div className="p-3 rounded-xl bg-[#F5F2EB] border border-[#E8E4DC] text-xs text-[#6E716E] flex items-center justify-between">
                   <span>Demo Vehicle: Nexon EV Max (CCS2 · 40.5 kWh)</span>

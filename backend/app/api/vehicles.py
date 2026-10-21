@@ -73,4 +73,19 @@ def get_vehicles(
 ):
     """Get vehicles belonging to the current user (or demo user if unauthenticated)."""
     user = current_user or get_or_create_demo_user(db)
-    return db.query(EVVehicle).filter(EVVehicle.user_id == user.id).all()
+    vehicles = db.query(EVVehicle).filter(
+        (EVVehicle.user_id == user.id) | (EVVehicle.user_id == str(user.id))
+    ).all()
+    if not vehicles:
+        default_vehicle = EVVehicle(
+            user_id=user.id,
+            model_name="Nexon EV Max",
+            battery_capacity_kwh=40.5,
+            max_charging_power_kw=50.0,
+            connector_type="CCS2",
+        )
+        db.add(default_vehicle)
+        db.commit()
+        db.refresh(default_vehicle)
+        vehicles = [default_vehicle]
+    return vehicles
